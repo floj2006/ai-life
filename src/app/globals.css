@@ -482,6 +482,27 @@ h3 {
   }
 }
 
+@media (max-width: 900px) {
+  body::before,
+  body::after,
+  .surface-glow::before,
+  .surface-glow::after,
+  .section-spark::before,
+  .lesson-card::before {
+    animation: none;
+    opacity: 0;
+    filter: none;
+  }
+
+  .surface {
+    backdrop-filter: none;
+  }
+
+  .primary-button {
+    animation: none;
+  }
+}
+
 @media (min-width: 768px) {
   .with-mobile-nav {
     padding-bottom: 2rem;

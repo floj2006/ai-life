@@ -8,6 +8,8 @@ type SubmissionMessageFormProps = {
   placeholder?: string;
   buttonLabel?: string;
   disabled?: boolean;
+  refreshOnSuccess?: boolean;
+  onSuccess?: (message: string) => void;
 };
 
 export function SubmissionMessageForm({
@@ -15,6 +17,8 @@ export function SubmissionMessageForm({
   placeholder = "Напишите сообщение",
   buttonLabel = "Отправить сообщение",
   disabled = false,
+  refreshOnSuccess = true,
+  onSuccess,
 }: SubmissionMessageFormProps) {
   const router = useRouter();
   const [message, setMessage] = useState("");
@@ -46,13 +50,25 @@ export function SubmissionMessageForm({
       });
 
       if (!response.ok) {
-        const data = (await response.json()) as { error?: string };
-        throw new Error(data.error ?? "Не удалось отправить сообщение.");
+        const rawText = await response.text();
+        let apiError = "Не удалось отправить сообщение.";
+        try {
+          const data = JSON.parse(rawText) as { error?: string };
+          apiError = data.error ?? apiError;
+        } catch {
+          if (rawText.trim()) {
+            apiError = rawText;
+          }
+        }
+        throw new Error(apiError);
       }
 
       setMessage("");
       setStatus("idle");
-      router.refresh();
+      onSuccess?.(trimmed);
+      if (refreshOnSuccess) {
+        router.refresh();
+      }
     } catch (messageError) {
       setStatus("error");
       setError(

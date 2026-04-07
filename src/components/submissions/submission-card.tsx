@@ -1,10 +1,16 @@
-"use client";
+﻿"use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { SubmissionMessageForm } from "@/components/submissions/submission-message-form";
 import { type SubmissionMediaPreview } from "@/lib/submission-media-preview";
 import { isExternalResultLink, parseStorageResultLink } from "@/lib/submission-media";
-import { submissionStatusClasses, submissionStatusLabels } from "@/lib/submissions";
+import { createClient } from "@/lib/supabase/client";
+import {
+  isSubmissionStatus,
+  submissionStatusClasses,
+  submissionStatusLabels,
+} from "@/lib/submissions";
 import type { SubmissionMessage, SubmissionStatus } from "@/lib/types";
 
 type SubmissionCardProps = {
@@ -54,6 +60,41 @@ const getLastAdminMessage = (messages: SubmissionMessage[]) => {
   return null;
 };
 
+const sortMessagesByCreatedAt = (left: SubmissionMessage, right: SubmissionMessage) => {
+  return new Date(left.created_at).getTime() - new Date(right.created_at).getTime();
+};
+
+const toMessageFromRealtimePayload = (
+  payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
+): SubmissionMessage | null => {
+  const row = (payload.new ?? {}) as Record<string, unknown>;
+
+  const id = typeof row.id === "string" ? row.id : null;
+  const submissionId = typeof row.submission_id === "string" ? row.submission_id : null;
+  const authorId = typeof row.author_id === "string" ? row.author_id : null;
+  const authorRoleRaw = row.author_role;
+  const authorRole = authorRoleRaw === "admin" || authorRoleRaw === "student" ? authorRoleRaw : null;
+  const message = typeof row.message === "string" ? row.message : null;
+  const createdAt = typeof row.created_at === "string" ? row.created_at : null;
+
+  if (!id || !submissionId || !authorId || !authorRole || !message || !createdAt) {
+    return null;
+  }
+
+  return {
+    id,
+    submission_id: submissionId,
+    author_id: authorId,
+    author_role: authorRole,
+    message,
+    created_at: createdAt,
+  };
+};
+
+const hasStorageMedia = (resultLink: string | null) => {
+  return Boolean(parseStorageResultLink(resultLink));
+};
+
 export function SubmissionCard({
   submissionId,
   lessonTitle,
@@ -65,14 +106,77 @@ export function SubmissionCard({
   thread,
   mediaPreview,
 }: SubmissionCardProps) {
+  const supabase = useMemo(() => createClient(), []);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
   const [expanded, setExpanded] = useState(false);
+  const [liveThread, setLiveThread] = useState<SubmissionMessage[]>(thread);
+  const [liveStatus, setLiveStatus] = useState<SubmissionStatus>(status);
+
+  useEffect(() => {
+    if (!expanded) {
+      return;
+    }
+
+    const channel = supabase
+      .channel(`submission-chat-${submissionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "submission_messages",
+          filter: `submission_id=eq.${submissionId}`,
+        },
+        (payload) => {
+          const nextMessage = toMessageFromRealtimePayload(payload);
+          if (!nextMessage) {
+            return;
+          }
+
+          setLiveThread((prev) => {
+            if (prev.some((item) => item.id === nextMessage.id)) {
+              return prev;
+            }
+
+            return [...prev, nextMessage].sort(sortMessagesByCreatedAt);
+          });
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "lesson_submissions",
+          filter: `id=eq.${submissionId}`,
+        },
+        (payload) => {
+          const nextStatusRaw = payload.new?.status;
+          if (typeof nextStatusRaw !== "string" || !isSubmissionStatus(nextStatusRaw)) {
+            return;
+          }
+          setLiveStatus(nextStatusRaw);
+        },
+      )
+      .subscribe();
+
+    channelRef.current = channel;
+
+    return () => {
+      if (channelRef.current) {
+        void supabase.removeChannel(channelRef.current);
+        channelRef.current = null;
+      }
+    };
+  }, [expanded, submissionId, supabase]);
+
   const trimmedComment = studentComment.trim();
   const commentPreview = trimmedComment
     ? shorten(trimmedComment, COMMENT_PREVIEW_LIMIT)
     : "Комментарий к работе не добавлен.";
-  const lastAdminMessage = getLastAdminMessage(thread);
+  const lastAdminMessage = getLastAdminMessage(liveThread);
   const externalLink = resultLink && isExternalResultLink(resultLink) ? resultLink : null;
-  const hasStorageMedia = Boolean(parseStorageResultLink(resultLink));
 
   return (
     <article className="surface overflow-hidden p-0">
@@ -93,7 +197,7 @@ export function SubmissionCard({
                   ? "Видео"
                   : externalLink
                     ? "Ссылка"
-                    : hasStorageMedia
+                    : hasStorageMedia(resultLink)
                       ? "Файл"
                       : "Задание"}
               </span>
@@ -103,7 +207,7 @@ export function SubmissionCard({
                     ? "Видео-результат готов к просмотру"
                     : externalLink
                       ? "Результат отправлен ссылкой"
-                      : hasStorageMedia
+                      : hasStorageMedia(resultLink)
                         ? "Файл загружен в платформу"
                         : "Материал пока без превью"}
                 </p>
@@ -121,9 +225,9 @@ export function SubmissionCard({
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-xl font-bold leading-tight md:text-2xl">{lessonTitle}</h2>
             <span
-              className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${submissionStatusClasses[status]}`}
+              className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${submissionStatusClasses[liveStatus]}`}
             >
-              {submissionStatusLabels[status]}
+              {submissionStatusLabels[liveStatus]}
             </span>
           </div>
 
@@ -135,7 +239,7 @@ export function SubmissionCard({
               Обновлено: {formatDateTime(updatedAt)}
             </span>
             <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
-              Сообщений: {thread.length}
+              Сообщений: {liveThread.length}
             </span>
           </div>
 
@@ -207,7 +311,7 @@ export function SubmissionCard({
 
                 {externalLink ? (
                   <p className="mt-3 text-sm leading-relaxed text-[var(--ink)]">
-                    Результат отправлен ссылкой.{" "}
+                    Результат отправлен ссылкой. {" "}
                     <a
                       href={externalLink}
                       target="_blank"
@@ -219,13 +323,13 @@ export function SubmissionCard({
                   </p>
                 ) : null}
 
-                {hasStorageMedia && !mediaPreview ? (
+                {hasStorageMedia(resultLink) && !mediaPreview ? (
                   <p className="mt-3 text-sm leading-relaxed text-zinc-700">
                     Файл результата загружен, но превью временно недоступно.
                   </p>
                 ) : null}
 
-                {!externalLink && !hasStorageMedia && !mediaPreview ? (
+                {!externalLink && !hasStorageMedia(resultLink) && !mediaPreview ? (
                   <p className="mt-3 text-sm leading-relaxed text-zinc-700">
                     Материал пока не приложен.
                   </p>
@@ -246,20 +350,20 @@ export function SubmissionCard({
               <section className="rounded-[24px] bg-white p-4 ring-1 ring-[var(--line)]">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-sky-700">
-                    Переписка
+                    Чат с проверяющим
                   </p>
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                    {thread.length} сообщений
+                    {liveThread.length} сообщений
                   </span>
                 </div>
 
-                {thread.length === 0 ? (
+                {liveThread.length === 0 ? (
                   <p className="mt-3 text-sm leading-relaxed text-zinc-600">
                     Пока нет сообщений от проверяющего.
                   </p>
                 ) : (
                   <div className="mt-3 grid max-h-[320px] gap-2 overflow-y-auto pr-1">
-                    {thread.map((item) => (
+                    {liveThread.map((item) => (
                       <div
                         key={item.id}
                         className={`rounded-2xl px-4 py-3 text-sm leading-relaxed ${
@@ -284,6 +388,7 @@ export function SubmissionCard({
                   submissionId={submissionId}
                   placeholder="Коротко ответьте по этому заданию"
                   buttonLabel="Отправить сообщение"
+                  refreshOnSuccess={false}
                 />
               </section>
             </div>
