@@ -84,7 +84,7 @@ export function LessonCatalog({ lessons, currentTier }: LessonCatalogProps) {
   }, [filter, lessons, levelFilter]);
 
   return (
-    <section className="fade-up mx-auto w-full">
+    <section id="course-catalog" className="fade-up mx-auto w-full">
       <div className="mb-4 flex flex-col items-center gap-3 text-center">
         <h2 className="text-2xl font-bold md:text-3xl">Курсы</h2>
 

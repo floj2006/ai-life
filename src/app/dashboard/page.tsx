@@ -210,7 +210,7 @@ export default async function DashboardPage() {
                         href={`/dashboard/lessons/${nextLesson.id}`}
                         className="action-button primary-button w-full sm:w-auto sm:min-w-[220px]"
                       >
-                        Открыть урок
+                        Открыть следующий урок
                       </Link>
                     ) : (
                       <Link
@@ -221,12 +221,15 @@ export default async function DashboardPage() {
                       </Link>
                     )}
                     <Link
-                      href="/submissions"
+                      href="#course-catalog"
                       className="action-button secondary-button w-full sm:w-auto sm:min-w-[220px]"
                     >
-                      Мои задания
+                      Выбрать любой урок
                     </Link>
                   </div>
+                  <p className="small-text mt-2">
+                    Можно открыть любой урок ниже в разделе «Курсы», порядок не заблокирован.
+                  </p>
                 </section>
 
                 <section className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.95fr)]">

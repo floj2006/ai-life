@@ -4,19 +4,38 @@ type JsonRecord = Record<string, unknown>;
 
 const SESSION_KEY = "ai-easy-life-session-id";
 
+let memorySessionId: string | null = null;
+
 const getSessionId = () => {
   if (typeof window === "undefined") {
     return "server";
   }
 
-  const existing = window.sessionStorage.getItem(SESSION_KEY);
-  if (existing) {
-    return existing;
-  }
+  try {
+    const existing = window.sessionStorage.getItem(SESSION_KEY);
+    if (existing) {
+      return existing;
+    }
 
-  const created = crypto.randomUUID();
-  window.sessionStorage.setItem(SESSION_KEY, created);
-  return created;
+    const created =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    window.sessionStorage.setItem(SESSION_KEY, created);
+    return created;
+  } catch {
+    if (memorySessionId) {
+      return memorySessionId;
+    }
+
+    memorySessionId =
+      typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    return memorySessionId;
+  }
 };
 
 const sendJson = (url: string, payload: JsonRecord) => {
@@ -45,12 +64,16 @@ export const trackClientEvent = (eventName: string, metadata: JsonRecord = {}) =
     return;
   }
 
-  sendJson("/api/telemetry/events", {
-    eventName,
-    routePath: `${window.location.pathname}${window.location.search}`,
-    sessionId: getSessionId(),
-    metadata,
-  });
+  try {
+    sendJson("/api/telemetry/events", {
+      eventName,
+      routePath: `${window.location.pathname}${window.location.search}`,
+      sessionId: getSessionId(),
+      metadata,
+    });
+  } catch {
+    // Telemetry must never break UX.
+  }
 };
 
 export const trackClientError = ({
@@ -68,12 +91,16 @@ export const trackClientError = ({
     return;
   }
 
-  sendJson("/api/telemetry/errors", {
-    source,
-    message,
-    stack,
-    routePath: `${window.location.pathname}${window.location.search}`,
-    sessionId: getSessionId(),
-    metadata,
-  });
+  try {
+    sendJson("/api/telemetry/errors", {
+      source,
+      message,
+      stack,
+      routePath: `${window.location.pathname}${window.location.search}`,
+      sessionId: getSessionId(),
+      metadata,
+    });
+  } catch {
+    // Telemetry must never break UX.
+  }
 };
