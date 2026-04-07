@@ -22,6 +22,7 @@ export function SubmissionCreateForm({ lessonId, disabled = false }: SubmissionC
   const [comment, setComment] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [error, setError] = useState("");
+  const REQUEST_TIMEOUT_MS = 45_000;
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -52,6 +53,8 @@ export function SubmissionCreateForm({ lessonId, disabled = false }: SubmissionC
     setError("");
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       const formData = new FormData();
       formData.set("lessonId", lessonId);
       formData.set("comment", comment.trim());
@@ -60,11 +63,21 @@ export function SubmissionCreateForm({ lessonId, disabled = false }: SubmissionC
       const response = await fetch("/api/submissions", {
         method: "POST",
         body: formData,
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
 
       if (!response.ok) {
-        const data = (await response.json()) as { error?: string };
-        throw new Error(data.error ?? "Не удалось отправить задание.");
+        let errorMessage = "Не удалось отправить задание.";
+        try {
+          const data = (await response.json()) as { error?: string };
+          errorMessage = data.error ?? errorMessage;
+        } catch {
+          const text = (await response.text()).trim();
+          if (text) {
+            errorMessage = text;
+          }
+        }
+        throw new Error(errorMessage);
       }
 
       setStatus("success");
@@ -80,6 +93,12 @@ export function SubmissionCreateForm({ lessonId, disabled = false }: SubmissionC
       });
       router.refresh();
     } catch (submissionError) {
+      if (submissionError instanceof DOMException && submissionError.name === "AbortError") {
+        setStatus("error");
+        setError("Сервер отвечает слишком долго. Проверьте интернет и отправьте ещё раз.");
+        return;
+      }
+
       setStatus("error");
       setError(
         submissionError instanceof Error

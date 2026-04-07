@@ -270,12 +270,14 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const student = studentResult.data as StudentRow | null;
 
-    await sendSubmissionStatusToStudent({
+    void sendSubmissionStatusToStudent({
       studentEmail: student?.email ?? null,
       studentName: student?.full_name ?? null,
       lessonTitle: lessonMeta.title,
       statusLabel: submissionStatusLabels[payload.status],
       reviewerComment: message,
+    }).catch((error) => {
+      console.error("[submissions] Failed to notify student about status update.", error);
     });
   }
 

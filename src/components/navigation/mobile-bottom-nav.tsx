@@ -19,7 +19,7 @@ const iconClass = "h-5 w-5";
 
 const userItems: NavItem[] = [
   {
-    href: "/dashboard",
+    href: "/dashboard?section=courses",
     label: "Курсы",
     startsWith: ["/dashboard"],
     icon: (
@@ -148,3 +148,5 @@ export function MobileBottomNav({ isAdmin }: MobileBottomNavProps) {
     </nav>
   );
 }
+
+

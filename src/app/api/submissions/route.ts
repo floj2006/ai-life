@@ -586,11 +586,13 @@ export async function POST(request: Request) {
   }
 
   if (isNewSubmission) {
-    await sendNewSubmissionToAdmins({
+    void sendNewSubmissionToAdmins({
       lessonTitle: demoLesson?.title ?? lesson.title,
       studentName: studentProfile?.full_name ?? user.user_metadata?.full_name ?? null,
       studentEmail: user.email ?? studentProfile?.email ?? null,
       submittedAtIso,
+    }).catch((error) => {
+      console.error("[submissions] Failed to send new-submission notification.", error);
     });
   }
 

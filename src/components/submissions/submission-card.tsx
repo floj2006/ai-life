@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { SubmissionMessageForm } from "@/components/submissions/submission-message-form";
 import { type SubmissionMediaPreview } from "@/lib/submission-media-preview";
@@ -112,11 +112,45 @@ export function SubmissionCard({
   const [expanded, setExpanded] = useState(false);
   const [liveThread, setLiveThread] = useState<SubmissionMessage[]>(thread);
   const [liveStatus, setLiveStatus] = useState<SubmissionStatus>(status);
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const syncMessages = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      const response = await fetch(`/api/submissions/${submissionId}/messages`, {
+        method: "GET",
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        return;
+      }
+
+      const payload = (await response.json()) as {
+        items?: SubmissionMessage[];
+        status?: string | null;
+      };
+
+      if (Array.isArray(payload.items)) {
+        setLiveThread(payload.items.slice().sort(sortMessagesByCreatedAt));
+      }
+
+      if (typeof payload.status === "string" && isSubmissionStatus(payload.status)) {
+        setLiveStatus(payload.status);
+      }
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [submissionId]);
 
   useEffect(() => {
     if (!expanded) {
       return;
     }
+
+    void syncMessages();
+    const pollId = window.setInterval(() => {
+      void syncMessages();
+    }, 4000);
 
     const channel = supabase
       .channel(`submission-chat-${submissionId}`)
@@ -164,12 +198,21 @@ export function SubmissionCard({
     channelRef.current = channel;
 
     return () => {
+      window.clearInterval(pollId);
       if (channelRef.current) {
         void supabase.removeChannel(channelRef.current);
         channelRef.current = null;
       }
     };
-  }, [expanded, submissionId, supabase]);
+  }, [expanded, submissionId, supabase, syncMessages]);
+
+  useEffect(() => {
+    setLiveThread(thread);
+  }, [thread]);
+
+  useEffect(() => {
+    setLiveStatus(status);
+  }, [status]);
 
   const trimmedComment = studentComment.trim();
   const commentPreview = trimmedComment
@@ -353,7 +396,7 @@ export function SubmissionCard({
                     Чат с проверяющим
                   </p>
                   <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-                    {liveThread.length} сообщений
+                    {isSyncing ? "Синхронизация..." : `${liveThread.length} сообщений`}
                   </span>
                 </div>
 
@@ -389,6 +432,9 @@ export function SubmissionCard({
                   placeholder="Коротко ответьте по этому заданию"
                   buttonLabel="Отправить сообщение"
                   refreshOnSuccess={false}
+                  onSuccess={() => {
+                    void syncMessages();
+                  }}
                 />
               </section>
             </div>

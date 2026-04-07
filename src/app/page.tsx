@@ -1,10 +1,20 @@
 ﻿import Image from "next/image";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { plans } from "@/lib/pricing";
+import { createClient } from "@/lib/supabase/server";
 
 const skills = ["улучшать фото", "создавать видео", "писать тексты"];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    redirect("/dashboard");
+  }
   return (
     <main className="container-shell flex flex-col gap-6 py-4 md:py-8">
       <section className="surface fade-up overflow-hidden">
@@ -133,3 +143,5 @@ export default function HomePage() {
     </main>
   );
 }
+
+

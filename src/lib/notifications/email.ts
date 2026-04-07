@@ -1,4 +1,4 @@
-import "server-only";
+﻿import "server-only";
 import { Resend } from "resend";
 import { getAdminEmails } from "@/lib/admin-access";
 
@@ -22,6 +22,20 @@ type StudentStatusEmailInput = {
   lessonTitle: string;
   statusLabel: string;
   reviewerComment?: string;
+};
+
+type StudentMessageEmailInput = {
+  studentEmail?: string | null;
+  studentName?: string | null;
+  lessonTitle: string;
+  message: string;
+};
+
+type AdminMessageEmailInput = {
+  lessonTitle: string;
+  studentName?: string | null;
+  studentEmail?: string | null;
+  message: string;
 };
 
 const normalizeBaseUrl = (value: string | undefined) => {
@@ -148,7 +162,7 @@ export const sendSubmissionStatusToStudent = async (
     ? `Комментарий проверяющего: ${input.reviewerComment}`
     : "Комментарий проверяющего: без комментария";
 
-  const subject = `Обновлен статус задания: ${input.statusLabel}`;
+  const subject = `Статус задания обновлен: ${input.statusLabel}`;
   const text = [
     `Здравствуйте, ${studentName}!`,
     "",
@@ -174,6 +188,97 @@ export const sendSubmissionStatusToStudent = async (
 
   await sendEmail({
     to,
+    subject,
+    text,
+    html,
+  });
+};
+
+export const sendSubmissionMessageToStudent = async (
+  input: StudentMessageEmailInput,
+) => {
+  const to = input.studentEmail?.trim();
+  if (!to) {
+    return;
+  }
+
+  const submissionsUrl = getSubmissionsUrl();
+  const studentName =
+    input.studentName && input.studentName.trim().length > 0
+      ? input.studentName
+      : "ученик";
+  const shortMessage = input.message.trim().slice(0, 300);
+  const subject = `Новое сообщение по заданию: ${input.lessonTitle}`;
+
+  const text = [
+    `Здравствуйте, ${studentName}!`,
+    "",
+    `По уроку «${input.lessonTitle}» пришел новый комментарий от проверяющего.`,
+    "",
+    `Сообщение: ${shortMessage}`,
+    "",
+    `Открыть чат по заданию: ${submissionsUrl}`,
+  ].join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111;">
+      <h2 style="margin: 0 0 12px;">Новое сообщение от проверяющего</h2>
+      <p style="margin: 0 0 8px;"><strong>Урок:</strong> ${input.lessonTitle}</p>
+      <p style="margin: 0 0 16px;"><strong>Сообщение:</strong> ${shortMessage}</p>
+      <a href="${submissionsUrl}" style="display:inline-block;padding:10px 14px;background:#059669;color:#fff;text-decoration:none;border-radius:8px;">
+        Открыть чат по заданию
+      </a>
+    </div>
+  `;
+
+  await sendEmail({
+    to,
+    subject,
+    text,
+    html,
+  });
+};
+
+export const sendNewStudentMessageToAdmins = async (
+  input: AdminMessageEmailInput,
+) => {
+  const admins = getAdminEmails();
+  if (admins.length === 0) {
+    return;
+  }
+
+  const reviewUrl = getReviewUrl();
+  const studentLabel =
+    input.studentName && input.studentName.trim().length > 0
+      ? `${input.studentName}${input.studentEmail ? ` (${input.studentEmail})` : ""}`
+      : input.studentEmail ?? "ученик";
+  const shortMessage = input.message.trim().slice(0, 300);
+  const subject = `Новое сообщение ученика: ${input.lessonTitle}`;
+
+  const text = [
+    "В чате задания появилось новое сообщение от ученика.",
+    "",
+    `Урок: ${input.lessonTitle}`,
+    `Ученик: ${studentLabel}`,
+    `Сообщение: ${shortMessage}`,
+    "",
+    `Открыть проверку: ${reviewUrl}`,
+  ].join("\n");
+
+  const html = `
+    <div style="font-family: Arial, sans-serif; line-height: 1.5; color: #111;">
+      <h2 style="margin: 0 0 12px;">Новое сообщение ученика</h2>
+      <p style="margin: 0 0 8px;"><strong>Урок:</strong> ${input.lessonTitle}</p>
+      <p style="margin: 0 0 8px;"><strong>Ученик:</strong> ${studentLabel}</p>
+      <p style="margin: 0 0 16px;"><strong>Сообщение:</strong> ${shortMessage}</p>
+      <a href="${reviewUrl}" style="display:inline-block;padding:10px 14px;background:#059669;color:#fff;text-decoration:none;border-radius:8px;">
+        Открыть проверку
+      </a>
+    </div>
+  `;
+
+  await sendEmail({
+    to: admins,
     subject,
     text,
     html,

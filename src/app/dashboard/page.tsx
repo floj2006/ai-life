@@ -1,5 +1,6 @@
 ﻿import Image from "next/image";
 import Link from "next/link";
+import { DashboardSectionScroll } from "@/components/dashboard/dashboard-section-scroll";
 import { LessonCategoryChip } from "@/components/dashboard/lesson-category-chip";
 import { LessonCatalog } from "@/components/dashboard/lesson-catalog";
 import { LogoutButton } from "@/components/dashboard/logout-button";
@@ -79,7 +80,12 @@ export default async function DashboardPage() {
 
   const isAdmin = isAdminEmail(profile.email);
   const nextLesson = !isAdmin
-    ? lessonsWithProgress.find((lesson) => !lesson.completed) ?? lessonsWithProgress[0] ?? null
+    ? lessonsWithProgress.find(
+        (lesson) => !lesson.completed && lesson.required_tier === profile.subscription_tier,
+      ) ??
+      lessonsWithProgress.find((lesson) => !lesson.completed) ??
+      lessonsWithProgress[0] ??
+      null
     : null;
   const upgradePlanId = !isAdmin ? getUpgradePlanId(profile.subscription_tier) : null;
   const upgradePlan = upgradePlanId ? paidPlanById[upgradePlanId] : null;
@@ -127,6 +133,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="container-shell with-mobile-nav flex flex-col gap-4 py-4 md:gap-6 md:py-8">
+      {!isAdmin ? <DashboardSectionScroll /> : null}
       <section className="surface surface-glow fade-up overflow-hidden p-5 md:p-8">
         <div className="grid gap-6 md:grid-cols-[minmax(0,1.45fr)_minmax(320px,360px)] md:items-start">
           <div className="min-w-0">
@@ -193,7 +200,7 @@ export default async function DashboardPage() {
                         {nextLesson.duration_minutes} мин
                       </span>
                       <span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-sky-800 ring-1 ring-sky-100">
-                        Уровень {getTierLabel(nextLesson.required_tier)}
+                        Уровень урока: {getTierLabel(nextLesson.required_tier)}
                       </span>
                     </div>
                   ) : null}
@@ -210,7 +217,7 @@ export default async function DashboardPage() {
                         href={`/dashboard/lessons/${nextLesson.id}`}
                         className="action-button primary-button w-full sm:w-auto sm:min-w-[220px]"
                       >
-                        Открыть следующий урок
+                        Открыть урок
                       </Link>
                     ) : (
                       <Link
@@ -221,7 +228,7 @@ export default async function DashboardPage() {
                       </Link>
                     )}
                     <Link
-                      href="#course-catalog"
+                      href="/dashboard?section=courses"
                       className="action-button secondary-button w-full sm:w-auto sm:min-w-[220px]"
                     >
                       Выбрать любой урок
@@ -232,7 +239,7 @@ export default async function DashboardPage() {
                   </p>
                 </section>
 
-                <section className="grid gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.95fr)]">
+                <section className="hidden gap-4 md:grid lg:grid-cols-[minmax(0,1.05fr)_minmax(300px,0.95fr)]">
                   <div className="section-spark rounded-[28px] border border-[var(--line)] bg-white/72 p-5">
                     <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-700">
                       Как всё проходит
@@ -408,3 +415,5 @@ export default async function DashboardPage() {
     </main>
   );
 }
+
+

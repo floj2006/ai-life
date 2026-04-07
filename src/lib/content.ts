@@ -42,6 +42,7 @@ type BeginnerPromptTemplateInput = {
   goal: string;
   category: LessonCategory;
   basePrompt: string;
+  replaceHint: string;
   expectedResult: string;
 };
 
@@ -219,6 +220,41 @@ const normalizeMultilineText = (value: string) =>
     .join("\n")
     .trim();
 
+const extractPromptPlaceholdersRaw = (value: string) => {
+  const matches = value.match(/\{[^{}]+\}/g) ?? [];
+  const unique = new Set<string>();
+
+  for (const match of matches) {
+    unique.add(normalizeInlineText(match));
+  }
+
+  return [...unique];
+};
+
+const buildHintPlaceholders = (replaceHint: string) => {
+  const normalized = normalizeInlineText(replaceHint)
+    .replace(/\s+и\s+/gi, ", ")
+    .replace(/;/g, ",");
+
+  return normalized
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => (item.startsWith("{") ? item : `{${item}}`));
+};
+
+const resolvePromptPlaceholders = (basePrompt: string, replaceHint: string) => {
+  const fromPrompt = extractPromptPlaceholdersRaw(basePrompt);
+  const fromHint = buildHintPlaceholders(replaceHint);
+
+  const unique = new Set<string>();
+  for (const token of [...fromPrompt, ...fromHint]) {
+    unique.add(token);
+  }
+
+  return [...unique];
+};
+
 const buildLessonId = (sortOrder: number) =>
   `00000000-0000-4000-8000-${String(sortOrder).padStart(12, "0")}`;
 
@@ -313,9 +349,14 @@ export const buildBeginnerPromptTemplate = ({
   goal,
   category,
   basePrompt,
+  replaceHint,
   expectedResult,
 }: BeginnerPromptTemplateInput) => {
   const prompt = normalizeMultilineText(basePrompt);
+  const placeholders = resolvePromptPlaceholders(prompt, replaceHint);
+  const placeholdersLine = placeholders.length > 0
+    ? `Что заменить под себя: ${placeholders.join(", ")}.`
+    : "";
 
   if (prompt.startsWith(BEGINNER_PROMPT_HEADER)) {
     return prompt;
@@ -327,6 +368,7 @@ export const buildBeginnerPromptTemplate = ({
     `${BEGINNER_PROMPT_HEADER} ${normalizeInlineText(goal)}`,
     `Рекомендуемая модель в Syntx AI: ${guide.primary}.`,
     "Перед запуском замените значения в фигурных скобках на свои данные.",
+    placeholdersLine,
     "",
     "Промпт:",
     prompt,
@@ -363,6 +405,7 @@ const toLesson = (lesson: CuratedLessonInput, index: number): Lesson => {
       goal,
       category: lesson.category,
       basePrompt,
+      replaceHint: lesson.replace_hint,
       expectedResult,
     }),
     expected_result: expectedResult,
@@ -445,6 +488,9 @@ const demoLessonBySlug = new Map(demoLessons.map((lesson) => [lesson.slug, lesso
 const demoLessonById = new Map(demoLessons.map((lesson) => [lesson.id, lesson]));
 
 export const lessonSlugs: LessonSlug[] = demoLessons.map((lesson) => lesson.slug);
+
+export const extractPromptPlaceholders = (value: string) =>
+  resolvePromptPlaceholders(value, "");
 
 export const findDemoLessonBySlug = (slug: string) =>
   demoLessonBySlug.get(slug);

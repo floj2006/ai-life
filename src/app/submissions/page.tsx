@@ -20,8 +20,14 @@ type LessonReferenceRow = {
   slug: string | null;
 };
 
-export default async function SubmissionsPage() {
+type SubmissionsPageProps = {
+  searchParams: Promise<{ tab?: string }>;
+};
+
+export default async function SubmissionsPage({ searchParams }: SubmissionsPageProps) {
   noStore();
+  const params = await searchParams;
+  const tab = params.tab === "completed" ? "completed" : "active";
 
   const { user } = await requireUser();
   const admin = createAdminClient();
@@ -95,6 +101,10 @@ export default async function SubmissionsPage() {
       approved: 0,
     },
   );
+  const filteredSubmissions = submissions.filter((submission) => {
+    const status = isSubmissionStatus(submission.status) ? submission.status : "sent";
+    return tab === "completed" ? status === "approved" : status !== "approved";
+  });
 
   return (
     <main className="container-shell with-mobile-nav flex flex-col gap-4 py-4 md:gap-6 md:py-8">
@@ -107,7 +117,7 @@ export default async function SubmissionsPage() {
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href="/dashboard" className="action-button secondary-button">
+            <Link href="/dashboard?section=courses" className="action-button secondary-button">
               К урокам
             </Link>
             {isAdmin ? (
@@ -120,6 +130,26 @@ export default async function SubmissionsPage() {
 
         {submissions.length > 0 ? (
           <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/submissions?tab=active"
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                tab === "active"
+                  ? "bg-sky-600 text-white"
+                  : "bg-zinc-100 text-zinc-700"
+              }`}
+            >
+              Активные
+            </Link>
+            <Link
+              href="/submissions?tab=completed"
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                tab === "completed"
+                  ? "bg-sky-600 text-white"
+                  : "bg-zinc-100 text-zinc-700"
+              }`}
+            >
+              Принятые
+            </Link>
             <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
               Всего: {submissions.length}
             </span>
@@ -139,15 +169,17 @@ export default async function SubmissionsPage() {
         ) : null}
       </section>
 
-      {submissions.length === 0 ? (
+      {filteredSubmissions.length === 0 ? (
         <section className="surface p-6">
           <p className="small-text">
-            Пока нет отправленных заданий. Откройте урок и нажмите «Отправить задание».
+            {tab === "completed"
+              ? "Пока нет принятых заданий."
+              : "Пока нет активных заданий. Откройте урок и нажмите «Отправить задание»."}
           </p>
         </section>
       ) : (
         <section className="grid gap-4">
-          {submissions.map((submission) => {
+          {filteredSubmissions.map((submission) => {
             const status = isSubmissionStatus(submission.status) ? submission.status : "sent";
             const demoLesson = resolveDemoLessonFromReference(
               submission.lesson_id,

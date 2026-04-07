@@ -7,6 +7,7 @@ import { SubmissionCreateForm } from "@/components/submissions/submission-create
 import { TrackEventOnMount } from "@/components/telemetry/track-event-on-mount";
 import { isAdminEmail } from "@/lib/admin-access";
 import {
+  extractPromptPlaceholders,
   getHomeworkChecklist,
   getHomeworkCommonMistakes,
   getPromptExplainer,
@@ -46,6 +47,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
 
   const modelGuide = getSyntxModelGuide(lesson.category);
   const promptExplainer = getPromptExplainer(lesson.category);
+  const promptPlaceholders = extractPromptPlaceholders(lesson.prompt_template);
   const homeworkChecklist = getHomeworkChecklist(lesson.category);
   const homeworkMistakes = getHomeworkCommonMistakes(lesson.category);
   const primaryToolUrl = lesson.ai_tool_url;
@@ -70,7 +72,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3">
             <Link
-              href="/dashboard#course-catalog"
+              href="/dashboard?section=courses"
               className="action-button secondary-button w-full sm:w-fit"
             >
               К списку уроков
@@ -81,7 +83,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
               <span
                 className={`rounded-full px-3 py-1 text-xs font-bold uppercase ${tierBadgeClass(lesson.required_tier)}`}
               >
-                Уровень {getTierLabel(lesson.required_tier)}
+                Уровень урока: {getTierLabel(lesson.required_tier)}
               </span>
               <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold uppercase text-zinc-700">
                 {lesson.duration_minutes} мин
@@ -260,9 +262,9 @@ export default async function LessonPage({ params }: LessonPageProps) {
               Что заменить под себя
             </p>
             <ul className="mt-2 grid gap-2 text-sm leading-relaxed text-[var(--ink)]">
-              {promptExplainer.whatToReplace.map((item) => (
-                <li key={item}>- {item}</li>
-              ))}
+              {promptPlaceholders.length > 0
+                ? promptPlaceholders.map((item) => <li key={item}>- {item}</li>)
+                : promptExplainer.whatToReplace.map((item) => <li key={item}>- {item}</li>)}
             </ul>
           </div>
 
@@ -320,7 +322,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         className="surface fade-up p-4 md:hidden"
         style={{ animationDelay: "0.18s" }}
       >
-        <Link href="/dashboard#course-catalog" className="action-button secondary-button w-full">
+        <Link href="/dashboard?section=courses" className="action-button secondary-button w-full">
           Вернуться к курсам
         </Link>
       </section>
@@ -329,3 +331,4 @@ export default async function LessonPage({ params }: LessonPageProps) {
     </main>
   );
 }
+

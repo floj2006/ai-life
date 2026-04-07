@@ -29,14 +29,14 @@ const LEVEL_FILTERS: { value: SubscriptionTier | "all"; label: string }[] = [
 
 const tierSectionTitle = (tier: SubscriptionTier) => {
   if (tier === "newbie") {
-    return "Уровень Newbie";
+    return "Уроки уровня Newbie";
   }
 
   if (tier === "start") {
-    return "Уровень Start";
+    return "Уроки уровня Start";
   }
 
-  return "Уровень Max";
+  return "Уроки уровня Max";
 };
 
 const tierBadgeClass = (tier: SubscriptionTier) => {
