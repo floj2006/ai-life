@@ -68,7 +68,7 @@ export function AuthForm() {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
 
-  const [mode, setMode] = useState<Mode>("signup");
+  const [mode, setMode] = useState<Mode>("signin");
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -237,18 +237,18 @@ export function AuthForm() {
 
   return (
     <div className="surface auth-form-shell mx-auto w-full max-w-md p-5 md:p-7">
+      <div className="mb-4">
+        <h2 className="text-2xl font-bold leading-tight text-[var(--ink)]">
+          {mode === "signup" ? "Создайте аккаунт" : "Вход в аккаунт"}
+        </h2>
+        <p className="small-text mt-1">
+          {mode === "signup"
+            ? "Введите данные и начните обучение сразу после регистрации."
+            : "Войдите, чтобы продолжить уроки и переписку по заданиям."}
+        </p>
+      </div>
+
       <div className="mb-4 grid grid-cols-2 gap-2 rounded-2xl bg-cyan-50 p-1">
-        <button
-          type="button"
-          onClick={() => switchMode("signup")}
-          className={`rounded-xl py-3 text-base font-semibold transition ${
-            mode === "signup"
-              ? "bg-white text-sky-900 shadow-sm"
-              : "text-sky-800/70"
-          }`}
-        >
-          Регистрация
-        </button>
         <button
           type="button"
           onClick={() => switchMode("signin")}
@@ -259,6 +259,17 @@ export function AuthForm() {
           }`}
         >
           Вход
+        </button>
+        <button
+          type="button"
+          onClick={() => switchMode("signup")}
+          className={`rounded-xl py-3 text-base font-semibold transition ${
+            mode === "signup"
+              ? "bg-white text-sky-900 shadow-sm"
+              : "text-sky-800/70"
+          }`}
+        >
+          Регистрация
         </button>
       </div>
 

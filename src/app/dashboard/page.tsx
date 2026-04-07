@@ -1,6 +1,5 @@
 ﻿import Image from "next/image";
 import Link from "next/link";
-import { DashboardSectionScroll } from "@/components/dashboard/dashboard-section-scroll";
 import { LessonCategoryChip } from "@/components/dashboard/lesson-category-chip";
 import { LessonCatalog } from "@/components/dashboard/lesson-catalog";
 import { LogoutButton } from "@/components/dashboard/logout-button";
@@ -74,11 +73,17 @@ const getUpgradeCopy = (planId: PaidPlanId) => {
   };
 };
 
-export default async function DashboardPage() {
+type DashboardPageProps = {
+  searchParams: Promise<{ section?: string }>;
+};
+
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const params = await searchParams;
   const { profile, lessonsWithProgress, completedCount, totalLessons, progressPercent } =
     await getDashboardData();
 
   const isAdmin = isAdminEmail(profile.email);
+  const focusCourses = !isAdmin && params.section === "courses";
   const nextLesson = !isAdmin
     ? lessonsWithProgress.find(
         (lesson) => !lesson.completed && lesson.required_tier === profile.subscription_tier,
@@ -133,7 +138,9 @@ export default async function DashboardPage() {
 
   return (
     <main className="container-shell with-mobile-nav flex flex-col gap-4 py-4 md:gap-6 md:py-8">
-      {!isAdmin ? <DashboardSectionScroll /> : null}
+      {focusCourses ? (
+        <LessonCatalog lessons={lessonsWithProgress} currentTier={profile.subscription_tier} />
+      ) : null}
       <section className="surface surface-glow fade-up overflow-hidden p-5 md:p-8">
         <div className="grid gap-6 md:grid-cols-[minmax(0,1.45fr)_minmax(320px,360px)] md:items-start">
           <div className="min-w-0">
@@ -407,13 +414,15 @@ export default async function DashboardPage() {
             В админ-панели доступны управление тарифами, проверка работ и переписка с учениками.
           </p>
         </section>
-      ) : (
+       ) : !focusCourses ? (
         <LessonCatalog lessons={lessonsWithProgress} currentTier={profile.subscription_tier} />
-      )}
+      ) : null}
 
       <MobileBottomNav isAdmin={isAdmin} />
     </main>
   );
 }
+
+
 
 

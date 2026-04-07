@@ -24,6 +24,7 @@ export function SubmissionMessageForm({
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [error, setError] = useState("");
+  const REQUEST_TIMEOUT_MS = 20_000;
 
   const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -41,13 +42,16 @@ export function SubmissionMessageForm({
     setError("");
 
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
       const response = await fetch(`/api/submissions/${submissionId}/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ message: trimmed }),
-      });
+        signal: controller.signal,
+      }).finally(() => clearTimeout(timeoutId));
 
       if (!response.ok) {
         const rawText = await response.text();
@@ -70,6 +74,12 @@ export function SubmissionMessageForm({
         router.refresh();
       }
     } catch (messageError) {
+      if (messageError instanceof DOMException && messageError.name === "AbortError") {
+        setStatus("error");
+        setError("Сервер отвечает слишком долго. Проверьте интернет и попробуйте снова.");
+        return;
+      }
+
       setStatus("error");
       setError(
         messageError instanceof Error

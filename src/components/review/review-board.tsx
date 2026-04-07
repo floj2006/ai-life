@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { useRouter } from "next/navigation";
 import { SubmissionMessageForm } from "@/components/submissions/submission-message-form";
+import { createClient } from "@/lib/supabase/client";
 import { SubmissionStatusForm } from "@/components/submissions/submission-status-form";
 import { isExternalResultLink, parseStorageResultLink } from "@/lib/submission-media";
 import { submissionStatusClasses, submissionStatusLabels } from "@/lib/submissions";
@@ -93,9 +96,61 @@ const getLessonOptions = (rows: ReviewSubmissionItem[]) => {
 };
 
 export function ReviewBoard({ items }: ReviewBoardProps) {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
   const [openSections, setOpenSections] =
     useState<Record<ReviewSectionKey, boolean>>(initialOpenState);
   const [filters, setFilters] = useState<Record<ReviewSectionKey, string>>(initialFilters);
+
+  useEffect(() => {
+    let disposed = false;
+    let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+    let channel: RealtimeChannel | null = null;
+
+    const scheduleRefresh = () => {
+      if (disposed || refreshTimer) {
+        return;
+      }
+
+      refreshTimer = setTimeout(() => {
+        refreshTimer = null;
+        if (!disposed) {
+          router.refresh();
+        }
+      }, 900);
+    };
+
+    channel = supabase
+      .channel("review-live-board")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "submission_messages" },
+        scheduleRefresh,
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "lesson_submissions" },
+        scheduleRefresh,
+      )
+      .subscribe();
+
+    const fallbackPollId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        scheduleRefresh();
+      }
+    }, 15000);
+
+    return () => {
+      disposed = true;
+      if (refreshTimer) {
+        clearTimeout(refreshTimer);
+      }
+      clearInterval(fallbackPollId);
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+    };
+  }, [router, supabase]);
 
   const sectionData = useMemo(() => {
     return SECTION_CONFIG.map((section) => {
