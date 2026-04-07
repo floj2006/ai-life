@@ -70,7 +70,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-3">
             <Link
-              href="/dashboard"
+              href="/dashboard#course-catalog"
               className="action-button secondary-button w-full sm:w-fit"
             >
               К списку уроков
@@ -320,7 +320,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
         className="surface fade-up p-4 md:hidden"
         style={{ animationDelay: "0.18s" }}
       >
-        <Link href="/dashboard" className="action-button secondary-button w-full">
+        <Link href="/dashboard#course-catalog" className="action-button secondary-button w-full">
           Вернуться к курсам
         </Link>
       </section>
