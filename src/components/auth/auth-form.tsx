@@ -10,18 +10,39 @@ type Mode = "signin" | "signup" | "forgot";
 const RESET_COOLDOWN_KEY = "auth_reset_password_cooldown_until";
 const RESET_COOLDOWN_SECONDS = 60;
 
+const isLocalHostname = (hostname: string) => {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "0.0.0.0"
+  );
+};
+
 const resolveAppUrl = () => {
   const envUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-
-  if (envUrl && /^https?:\/\//.test(envUrl)) {
-    return envUrl.replace(/\/+$/, "");
-  }
+  const normalizedEnvUrl =
+    envUrl && /^https?:\/\//.test(envUrl) ? envUrl.replace(/\/+$/, "") : "";
 
   if (typeof window !== "undefined") {
-    return window.location.origin;
+    const browserOrigin = window.location.origin.replace(/\/+$/, "");
+
+    if (!normalizedEnvUrl) {
+      return browserOrigin;
+    }
+
+    try {
+      const envHost = new URL(normalizedEnvUrl).hostname;
+      if (isLocalHostname(envHost)) {
+        return browserOrigin;
+      }
+    } catch {
+      return browserOrigin;
+    }
+
+    return normalizedEnvUrl;
   }
 
-  return "";
+  return normalizedEnvUrl;
 };
 
 const toReadableAuthError = (message: string, mode: Mode) => {
@@ -120,6 +141,8 @@ export function AuthForm() {
     setMessage("");
 
     try {
+      const appUrl = resolveAppUrl();
+
       if (mode === "signup") {
         const { data, error: signUpError } = await supabase.auth.signUp({
           email,
@@ -128,6 +151,7 @@ export function AuthForm() {
             data: {
               full_name: fullName,
             },
+            emailRedirectTo: appUrl ? `${appUrl}/auth` : undefined,
           },
         });
 
@@ -183,7 +207,6 @@ export function AuthForm() {
         return;
       }
 
-      const appUrl = resolveAppUrl();
       const redirectTo = appUrl ? `${appUrl}/reset-password` : undefined;
 
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
