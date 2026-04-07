@@ -22,7 +22,9 @@ const getPublicSupabaseKey = () => {
   return (
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY ??
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+    process.env.SUPABASE_PUBLISHABLE_KEY ??
+    process.env.SUPABASE_ANON_KEY
   );
 };
 
@@ -31,11 +33,15 @@ const getPublicSupabaseKeyName = () => {
     ? "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY"
     : process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
       ? "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"
-      : "NEXT_PUBLIC_SUPABASE_ANON_KEY";
+      : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        ? "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+        : process.env.SUPABASE_PUBLISHABLE_KEY
+          ? "SUPABASE_PUBLISHABLE_KEY"
+          : "SUPABASE_ANON_KEY";
 };
 
 export const isSupabaseConfigured = () => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const publicKey = getPublicSupabaseKey();
   if (!url || !publicKey) {
     return false;
@@ -45,7 +51,7 @@ export const isSupabaseConfigured = () => {
 };
 
 export const getSupabasePublicEnv = (): SupabasePublicEnv | null => {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL;
   const publicKey = getPublicSupabaseKey();
 
   if (
@@ -61,7 +67,10 @@ export const getSupabasePublicEnv = (): SupabasePublicEnv | null => {
 };
 
 export const requireSupabasePublicEnv = (): SupabasePublicEnv => {
-  const url = required(process.env.NEXT_PUBLIC_SUPABASE_URL, "NEXT_PUBLIC_SUPABASE_URL");
+  const url = required(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? process.env.SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_URL ? "NEXT_PUBLIC_SUPABASE_URL" : "SUPABASE_URL",
+  );
   const publicKeyVarName = getPublicSupabaseKeyName();
   const anonKey = required(getPublicSupabaseKey(), publicKeyVarName);
 

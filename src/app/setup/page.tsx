@@ -24,13 +24,15 @@ SUPABASE_SERVICE_ROLE_KEY=...`}
         </p>
         <p className="small-text mt-2">
           `NEXT_PUBLIC_SUPABASE_URL` должен быть в формате
-          `https://your-project-ref.supabase.co`.
+          `https://your-project-ref.supabase.co`. Для Vercel можно также использовать
+          `SUPABASE_URL`, если интеграция создала именно это имя.
         </p>
         <p className="small-text mt-2">
           Публичный ключ можно передать как
           `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`,
-          `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` или `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-          Он не должен начинаться с `sb_secret_`.
+          `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`,
+          `SUPABASE_PUBLISHABLE_KEY` или `SUPABASE_ANON_KEY`. Он не должен
+          начинаться с `sb_secret_`.
         </p>
         <p className="small-text mt-2">
           После изменения `.env.local` перезапустите `npm run dev`.
