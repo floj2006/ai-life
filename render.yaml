@@ -1,0 +1,33 @@
+services:
+  - type: web
+    name: ai-life-platform
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /
+    envVars:
+      - key: NEXT_PUBLIC_SUPABASE_URL
+        sync: false
+      - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: APP_ADMIN_EMAILS
+        sync: false
+      - key: NEXT_PUBLIC_DIRECT_PAYMENT_START_REQUISITES
+        sync: false
+      - key: NEXT_PUBLIC_DIRECT_PAYMENT_MAX_REQUISITES
+        sync: false
+      - key: NEXT_PUBLIC_DIRECT_PAYMENT_REQUISITES
+        sync: false
+      - key: NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_TEXT
+        sync: false
+      - key: NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_URL
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false

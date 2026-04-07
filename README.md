@@ -143,6 +143,37 @@ npm install
 npm run dev
 ```
 
+## Deploy на Render
+В репозитории уже есть `render.yaml`, поэтому проект можно поднять как обычный Render Web Service без создания новой базы.
+
+Шаги:
+1. Откройте Render и создайте `Blueprint` или `Web Service` из этого GitHub-репозитория.
+2. Если Render спросит про базу данных, не создавайте новую Supabase-базу, если у вас уже есть свой проект Supabase.
+3. Добавьте переменные окружения из вашей текущей Supabase-базы:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=ваш_публичный_ключ
+SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_ключ
+APP_ADMIN_EMAILS=ваш@email.ru
+NEXT_PUBLIC_APP_URL=https://ваш-домен.onrender.com
+```
+
+Дополнительно для оплаты и уведомлений:
+
+```env
+NEXT_PUBLIC_DIRECT_PAYMENT_START_REQUISITES=...
+NEXT_PUBLIC_DIRECT_PAYMENT_MAX_REQUISITES=...
+NEXT_PUBLIC_DIRECT_PAYMENT_REQUISITES=
+NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_TEXT=@your_username
+NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_URL=
+RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
+RESEND_FROM_EMAIL=AI Easy Life <noreply@your-domain.com>
+```
+
+4. После первого деплоя выполните SQL из `supabase/schema.sql` в вашей Supabase-базе, если база пустая.
+5. Если вы меняли переменные окружения, сделайте Redeploy сервиса.
+
 ## Проверка
 ```bash
 npm run lint

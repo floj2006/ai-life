@@ -31,19 +31,19 @@ export default function SetupPage() {
       </section>
 
       <section className="surface p-5 md:p-8">
-        <h2 className="text-2xl font-bold">Как подключить вашу текущую базу в Vercel</h2>
+        <h2 className="text-2xl font-bold">Как подключить вашу текущую базу</h2>
         <ol className="mt-3 grid gap-3 text-sm text-slate-700">
           <li className="rounded-2xl border border-sky-100 bg-white/70 p-4">
-            1. Не создавайте новую базу через Vercel Marketplace, если проект Supabase у вас уже есть.
+            1. Не создавайте новую базу через интеграции хостинга, если проект Supabase у вас уже есть.
           </li>
           <li className="rounded-2xl border border-sky-100 bg-white/70 p-4">
-            2. Откройте Vercel → Project → Settings → Environment Variables.
+            2. Откройте настройки окружения в вашем хостинге: Vercel или Render.
           </li>
           <li className="rounded-2xl border border-sky-100 bg-white/70 p-4">
             3. Добавьте ключи вручную из вашей существующей Supabase-базы.
           </li>
           <li className="rounded-2xl border border-sky-100 bg-white/70 p-4">
-            4. Если вы открываете preview-ссылку, переменные должны быть добавлены в окружение Preview.
+            4. Если вы используете preview-окружение, переменные должны быть добавлены именно туда.
           </li>
           <li className="rounded-2xl border border-sky-100 bg-white/70 p-4">
             5. После добавления переменных обязательно сделайте Redeploy: старые деплои их не подхватывают.
@@ -57,7 +57,7 @@ export default function SetupPage() {
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=ваш_публичный_ключ
 SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_ключ
 APP_ADMIN_EMAILS=ваш@email.ru
-NEXT_PUBLIC_APP_URL=https://ваш-проект.vercel.app`}</pre>
+NEXT_PUBLIC_APP_URL=https://ваш-домен.onrender.com`}</pre>
         <p className="small-text mt-3">
           Проект также поддерживает алиасы: `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`,
           `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_ANON_KEY`.
