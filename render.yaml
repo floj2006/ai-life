@@ -3,9 +3,8 @@ services:
     name: ai-life-platform
     runtime: node
     plan: free
-    preDeployCommand: npm run db:bootstrap-admin
     buildCommand: npm install && npm run build
-    startCommand: npm run start
+    startCommand: npm run db:bootstrap-admin && npm run start
     healthCheckPath: /
     envVars:
       - key: NEXT_PUBLIC_SUPABASE_URL

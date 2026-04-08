@@ -75,8 +75,7 @@ try {
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   console.error(`[bootstrap-admin] Ошибка инициализации: ${message}`);
-  process.exitCode = 1;
+  console.log("[bootstrap-admin] Приложение будет запущено без аварийной остановки.");
 } finally {
   await client.end().catch(() => undefined);
 }
-
