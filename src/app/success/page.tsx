@@ -17,7 +17,7 @@ export default async function SuccessPage() {
 
       <section className="surface fade-up p-5 md:p-8">
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Link href="/dashboard" className="action-button primary-button">
+          <Link href="/dashboard/courses" className="action-button primary-button">
             К урокам
           </Link>
           <Link href="/billing" className="action-button secondary-button">

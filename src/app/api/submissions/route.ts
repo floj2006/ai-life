@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { isAdminEmail } from "@/lib/admin-access";
 import { findDemoLessonById } from "@/lib/content";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -277,7 +277,7 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Нужна авторизация." }, { status: 401 });
   }
 
   const url = new URL(request.url);
@@ -323,7 +323,7 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Нужна авторизация." }, { status: 401 });
   }
 
   const rateLimitResponse = enforceRateLimit({
@@ -385,7 +385,7 @@ export async function POST(request: Request) {
 
   const resolvedLessonResult = await resolveLessonForSubmission({ lessonId, supabase });
   if (!resolvedLessonResult) {
-    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+    return NextResponse.json({ error: "Урок не найден." }, { status: 404 });
   }
 
   const { lesson, resolvedLessonId } = resolvedLessonResult;
@@ -556,7 +556,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { error: submissionError?.message ?? "Failed to submit homework" },
+      { error: submissionError?.message ?? "Не удалось отправить задание." },
       { status: 400 },
     );
   }
@@ -598,5 +598,7 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true, submissionId: submission.id });
 }
+
+
 
 

@@ -38,36 +38,32 @@ export function TierUpdateForm({ userId, currentTier }: TierUpdateFormProps) {
       router.refresh();
     } catch (updateError) {
       setState("error");
-      setError(
-        updateError instanceof Error ? updateError.message : "Не удалось обновить тариф.",
-      );
+      setError(updateError instanceof Error ? updateError.message : "Не удалось обновить тариф.");
     }
   };
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-2 sm:flex-row sm:items-center">
+    <form onSubmit={onSubmit} className="flex min-w-[220px] flex-col gap-2 sm:min-w-[260px] sm:flex-row sm:items-center">
       <select
         value={tier}
         onChange={(event) => setTier(event.target.value as SubscriptionTier)}
-        className="h-10 rounded-xl border border-[var(--line)] bg-white px-3 text-sm font-semibold"
+        className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-800 focus:border-sky-300 focus:outline-none"
         disabled={state === "saving"}
       >
-        <option value="newbie">Newbie</option>
-        <option value="start">Start</option>
-        <option value="max">Max</option>
+        <option value="newbie">Новичок</option>
+        <option value="start">Старт</option>
+        <option value="max">Макс</option>
       </select>
 
       <button
         type="submit"
         disabled={state === "saving"}
-        className="action-button primary-button w-full sm:w-auto"
+        className="inline-flex h-10 items-center justify-center rounded-lg bg-sky-600 px-4 text-sm font-semibold text-white transition hover:bg-sky-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        {state === "saving" ? "Сохраняю..." : "Выдать тариф"}
+        {state === "saving" ? "Сохраняю..." : "Сохранить"}
       </button>
 
-      {state === "error" ? (
-        <p className="text-sm font-medium text-red-700">{error}</p>
-      ) : null}
+      {state === "error" ? <p className="text-xs font-medium text-red-700">{error}</p> : null}
     </form>
   );
 }

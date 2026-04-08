@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { trackClientEvent } from "@/lib/telemetry-client";
 
@@ -66,6 +66,7 @@ const toReadableAuthError = (message: string, mode: Mode) => {
 
 export function AuthForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
 
   const [mode, setMode] = useState<Mode>("signin");
@@ -77,6 +78,27 @@ export function AuthForm() {
   const [message, setMessage] = useState("");
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [nowTs, setNowTs] = useState(Date.now());
+  const modeFromQuery = searchParams.get("mode");
+
+  useEffect(() => {
+    if (modeFromQuery !== "signin" && modeFromQuery !== "signup" && modeFromQuery !== "forgot") {
+      return;
+    }
+
+    if (modeFromQuery !== mode) {
+      setMode(modeFromQuery);
+      setError("");
+      setMessage("");
+
+      if (modeFromQuery !== "signup") {
+        setFullName("");
+      }
+
+      if (modeFromQuery === "forgot") {
+        setPassword("");
+      }
+    }
+  }, [modeFromQuery, mode]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -132,6 +154,8 @@ export function AuthForm() {
     if (nextMode === "forgot") {
       setPassword("");
     }
+
+    router.replace(`/auth?mode=${nextMode}`, { scroll: false });
   };
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -171,6 +195,7 @@ export function AuthForm() {
           setMode("signin");
           setFullName("");
           setPassword("");
+          router.replace("/auth?mode=signin", { scroll: false });
           return;
         }
 
@@ -239,7 +264,7 @@ export function AuthForm() {
     <div className="surface auth-form-shell mx-auto w-full max-w-md p-5 md:p-7">
       <div className="mb-4">
         <h2 className="text-2xl font-bold leading-tight text-[var(--ink)]">
-          {mode === "signup" ? "Создайте аккаунт" : "Вход в аккаунт"}
+          {mode === "signup" ? "Регистрация в личный кабинет" : "Вход в аккаунт"}
         </h2>
         <p className="small-text mt-1">
           {mode === "signup"
@@ -300,7 +325,7 @@ export function AuthForm() {
             type="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            placeholder="you@email.com"
+            placeholder="name@mail.ru"
             className="h-12 w-full rounded-xl border border-[var(--line)] bg-white px-4 text-base outline-none transition focus:border-sky-600"
           />
         </label>

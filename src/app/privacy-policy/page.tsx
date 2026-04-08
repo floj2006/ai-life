@@ -4,7 +4,6 @@ import {
   LEGAL_BRAND_NAME,
   LEGAL_COMMON_NOTE,
   LEGAL_CONTACT_EMAIL,
-  LEGAL_CONTACT_TELEGRAM,
   LEGAL_PROVIDER_NAME,
   ROBOKASSA_PRIVACY_POLICY_URL,
 } from "@/lib/legal";
@@ -93,7 +92,6 @@ const sections = [
     title: "Контакты",
     items: [
       `Email поддержки: ${LEGAL_CONTACT_EMAIL}`,
-      `Telegram: ${LEGAL_CONTACT_TELEGRAM}`,
       "Если у вас есть запрос по персональным данным, напишите в поддержку с темой письма «Персональные данные».",
     ],
   },

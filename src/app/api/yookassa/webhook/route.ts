@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getYooKassaPayment } from "@/lib/yookassa";
 
@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   try {
     payload = (await request.json()) as YooKassaWebhookBody;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный формат запроса." }, { status: 400 });
   }
 
   if (payload.event !== "payment.succeeded") {
@@ -28,14 +28,14 @@ export async function POST(request: Request) {
 
   const paymentId = payload.object?.id;
   if (!paymentId) {
-    return NextResponse.json({ error: "Missing payment id" }, { status: 400 });
+    return NextResponse.json({ error: "Отсутствует идентификатор платежа." }, { status: 400 });
   }
 
   try {
     const payment = await getYooKassaPayment(paymentId);
     if (payment.status !== "succeeded" || !payment.paid) {
       return NextResponse.json(
-        { error: "Payment is not succeeded" },
+        { error: "Платеж еще не подтвержден." },
         { status: 400 },
       );
     }
@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     const userId = payment.metadata?.user_id;
     if (!userId) {
       return NextResponse.json(
-        { error: "Missing user_id in payment metadata" },
+        { error: "В метаданных платежа нет user_id." },
         { status: 400 },
       );
     }
@@ -97,3 +97,5 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
+
+

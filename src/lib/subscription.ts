@@ -15,14 +15,14 @@ export const isMaxTier = (tier: SubscriptionTier) => tier === "max";
 
 export const getTierLabel = (tier: SubscriptionTier) => {
   if (tier === "max") {
-    return "Max";
+    return "Макс";
   }
 
   if (tier === "start") {
-    return "Start";
+    return "Старт";
   }
 
-  return "Newbie";
+  return "Новичок";
 };
 
 const TIER_ORDER: Record<SubscriptionTier, number> = {

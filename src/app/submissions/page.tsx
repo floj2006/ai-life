@@ -2,6 +2,7 @@
 import { unstable_noStore as noStore } from "next/cache";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 import { SubmissionCard } from "@/components/submissions/submission-card";
+import { SubmissionsSeenMarker } from "@/components/submissions/submissions-seen-marker";
 import { isAdminEmail } from "@/lib/admin-access";
 import { requireUser } from "@/lib/auth";
 import {
@@ -108,6 +109,7 @@ export default async function SubmissionsPage({ searchParams }: SubmissionsPageP
 
   return (
     <main className="container-shell with-mobile-nav flex flex-col gap-4 py-4 md:gap-6 md:py-8">
+      {!isAdmin ? <SubmissionsSeenMarker /> : null}
       <section className="surface p-5 md:p-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -117,7 +119,7 @@ export default async function SubmissionsPage({ searchParams }: SubmissionsPageP
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
-            <Link href="/dashboard?section=courses" className="action-button secondary-button">
+            <Link href="/dashboard/courses" className="action-button secondary-button">
               К урокам
             </Link>
             {isAdmin ? (
@@ -210,3 +212,4 @@ export default async function SubmissionsPage({ searchParams }: SubmissionsPageP
     </main>
   );
 }
+

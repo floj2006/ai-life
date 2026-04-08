@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { isAdminEmail } from "@/lib/admin-access";
 import { findDemoLessonById, findDemoLessonBySlug } from "@/lib/content";
 import {
@@ -55,12 +55,12 @@ const resolveSubmissionForUser = async ({
     .maybeSingle();
 
   if (submissionResult.error || !submissionResult.data) {
-    return { error: "Submission not found", status: 404 as const, row: null };
+    return { error: "Задание не найдено.", status: 404 as const, row: null };
   }
 
   const row = submissionResult.data as SubmissionOwnerRow & { status?: string };
   if (!isAdmin && row.user_id !== userId) {
-    return { error: "Forbidden", status: 403 as const, row: null };
+    return { error: "Недостаточно прав.", status: 403 as const, row: null };
   }
 
   return { error: null, status: 200 as const, row };
@@ -83,7 +83,7 @@ export async function GET(_request: Request, context: RouteContext) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Нужна авторизация." }, { status: 401 });
   }
 
   const { submissionId } = await context.params;
@@ -172,7 +172,7 @@ export async function POST(request: Request, context: RouteContext) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Нужна авторизация." }, { status: 401 });
   }
 
   const isAdmin = isAdminEmail(user.email);
@@ -207,7 +207,7 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     payload = (await request.json()) as MessagePayload;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный формат запроса." }, { status: 400 });
   }
 
   const validatedMessage = validateTextInput({
@@ -232,7 +232,7 @@ export async function POST(request: Request, context: RouteContext) {
     });
     if (submissionAccess.error || !submissionAccess.row) {
       return NextResponse.json(
-        { error: submissionAccess.error ?? "Submission not found" },
+        { error: submissionAccess.error ?? "Задание не найдено." },
         { status: submissionAccess.status ?? 404 },
       );
     }
@@ -281,14 +281,14 @@ export async function POST(request: Request, context: RouteContext) {
   });
   if (submissionAccess.error || !submissionAccess.row) {
     return NextResponse.json(
-      { error: submissionAccess.error ?? "Submission not found" },
+      { error: submissionAccess.error ?? "Задание не найдено." },
       { status: submissionAccess.status ?? 404 },
     );
   }
 
   const row = submissionAccess.row;
   if (row.user_id !== user.id) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав." }, { status: 403 });
   }
 
   const { error } = await admin.from("submission_messages").insert({
@@ -319,3 +319,5 @@ export async function POST(request: Request, context: RouteContext) {
 
   return NextResponse.json({ ok: true });
 }
+
+

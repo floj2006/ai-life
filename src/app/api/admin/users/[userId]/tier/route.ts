@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { isAdminEmail } from "@/lib/admin-access";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { enforceRateLimit } from "@/lib/rate-limit";
@@ -39,11 +39,11 @@ export async function PATCH(request: Request, context: RouteContext) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Нужна авторизация." }, { status: 401 });
   }
 
   if (!isAdminEmail(user.email)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав для изменения тарифа." }, { status: 403 });
   }
 
   const rateLimitResponse = enforceRateLimit({
@@ -62,11 +62,11 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     payload = (await request.json()) as Payload;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный формат запроса." }, { status: 400 });
   }
 
   if (!isValidTier(payload.tier)) {
-    return NextResponse.json({ error: "Invalid tier" }, { status: 400 });
+    return NextResponse.json({ error: "Указан неверный тариф." }, { status: 400 });
   }
 
   const { userId } = await context.params;
@@ -79,7 +79,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   const authUserResult = await admin.auth.admin.getUserById(userId);
   if (authUserResult.error || !authUserResult.data.user) {
-    return NextResponse.json({ error: "User not found in Auth." }, { status: 404 });
+    return NextResponse.json({ error: "Пользователь не найден в системе авторизации." }, { status: 404 });
   }
 
   const authUser = authUserResult.data.user;
@@ -189,3 +189,4 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   return NextResponse.json({ ok: true, tier: payload.tier });
 }
+

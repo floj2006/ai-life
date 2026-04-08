@@ -22,21 +22,21 @@ const FILTERS: { value: LessonCategory | "all"; label: string }[] = [
 const TIER_SECTIONS: SubscriptionTier[] = ["newbie", "start", "max"];
 const LEVEL_FILTERS: { value: SubscriptionTier | "all"; label: string }[] = [
   { value: "all", label: "Все уровни" },
-  { value: "newbie", label: "Newbie" },
-  { value: "start", label: "Start" },
-  { value: "max", label: "Max" },
+  { value: "newbie", label: "Новичок" },
+  { value: "start", label: "Старт" },
+  { value: "max", label: "Макс" },
 ];
 
 const tierSectionTitle = (tier: SubscriptionTier) => {
   if (tier === "newbie") {
-    return "Уроки уровня Newbie";
+    return "Уроки уровня «Новичок»";
   }
 
   if (tier === "start") {
-    return "Уроки уровня Start";
+    return "Уроки уровня «Старт»";
   }
 
-  return "Уроки уровня Max";
+  return "Уроки уровня «Макс»";
 };
 
 const tierBadgeClass = (tier: SubscriptionTier) => {

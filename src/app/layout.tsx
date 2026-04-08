@@ -18,7 +18,7 @@ const spaceGrotesk = Space_Grotesk({
 export const metadata: Metadata = {
   title: "AI Easy Life",
   description:
-    "Онлайн-платформа для новичков: фото, видео и тексты с AI за 1 день.",
+    "Практическая AI-платформа для новичков: фото, видео, тексты и бизнес-сценарии с проверкой результатов.",
   icons: {
     icon: "/brand/ai-easy-life-avatar.png",
     shortcut: "/brand/ai-easy-life-avatar.png",
@@ -36,7 +36,7 @@ export default function RootLayout({
       lang="ru"
       className={`${manrope.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
+      <body className="flex min-h-full flex-col">
         <Suspense fallback={null}>
           <AppTelemetry />
         </Suspense>

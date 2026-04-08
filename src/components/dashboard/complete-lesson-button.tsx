@@ -47,7 +47,7 @@ export function CompleteLessonButton({
   if (disabled) {
     return (
       <p className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-800">
-        Этот урок доступен только на тарифе Max.
+        Этот урок доступен только на тарифе «Макс».
       </p>
     );
   }

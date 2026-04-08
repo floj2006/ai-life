@@ -35,14 +35,14 @@ export async function POST(request: Request) {
   try {
     payload = (await request.json()) as Payload;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный формат запроса." }, { status: 400 });
   }
 
   const eventName = sanitizeText(payload.eventName, 120);
   const routePath = sanitizeText(payload.routePath, 300);
 
   if (!eventName) {
-    return NextResponse.json({ error: "Missing event name" }, { status: 400 });
+    return NextResponse.json({ error: "Не указано название события." }, { status: 400 });
   }
 
   let userId: string | null = null;
@@ -74,3 +74,5 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true });
 }
+
+

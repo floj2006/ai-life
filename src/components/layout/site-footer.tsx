@@ -2,7 +2,6 @@ import Link from "next/link";
 import {
   LEGAL_BRAND_NAME,
   LEGAL_CONTACT_EMAIL,
-  LEGAL_CONTACT_TELEGRAM,
 } from "@/lib/legal";
 
 const legalLinks = [
@@ -23,9 +22,7 @@ export function SiteFooter() {
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="space-y-1 text-center md:text-left">
             <p className="text-sm font-semibold text-[var(--ink)]">{LEGAL_BRAND_NAME}</p>
-            <p className="small-text">
-              Контакты: {LEGAL_CONTACT_EMAIL} · {LEGAL_CONTACT_TELEGRAM}
-            </p>
+            <p className="small-text">Контакты: {LEGAL_CONTACT_EMAIL}</p>
           </div>
 
           <nav className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 md:justify-end">

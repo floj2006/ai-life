@@ -1,4 +1,4 @@
-# AI Easy Life
+﻿# AI Easy Life
 
 Платформа для новичков, которые хотят использовать AI в повседневных задачах: фото, видео, тексты и прикладные бизнес-сценарии.
 
@@ -35,12 +35,12 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY=sb_publishable_xxxxxxxxxxxxx
 SUPABASE_SERVICE_ROLE_KEY=eyJxxxxxxxxxxxxxxxx
 
 NEXT_PUBLIC_APP_URL=http://localhost:3000
-APP_ADMIN_EMAILS=your-email@example.com
+APP_ADMIN_EMAILS=neuroproai@gmail.com
 
 NEXT_PUBLIC_DIRECT_PAYMENT_START_REQUISITES=Банк: ...\nПолучатель: ...\nНомер карты/счета: ...
 NEXT_PUBLIC_DIRECT_PAYMENT_MAX_REQUISITES=Банк: ...\nПолучатель: ...\nНомер карты/счета: ...
 NEXT_PUBLIC_DIRECT_PAYMENT_REQUISITES=
-NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_TEXT=@your_username
+NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_TEXT=Отправьте чек на neuroproai@gmail.com
 NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_URL=
 
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
@@ -155,7 +155,7 @@ npm run dev
 NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=ваш_публичный_ключ
 SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_ключ
-APP_ADMIN_EMAILS=ваш@email.ru
+APP_ADMIN_EMAILS=neuroproai@gmail.com
 NEXT_PUBLIC_APP_URL=https://ваш-домен.onrender.com
 ```
 
@@ -165,7 +165,7 @@ NEXT_PUBLIC_APP_URL=https://ваш-домен.onrender.com
 NEXT_PUBLIC_DIRECT_PAYMENT_START_REQUISITES=...
 NEXT_PUBLIC_DIRECT_PAYMENT_MAX_REQUISITES=...
 NEXT_PUBLIC_DIRECT_PAYMENT_REQUISITES=
-NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_TEXT=@your_username
+NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_TEXT=Отправьте чек на neuroproai@gmail.com
 NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_URL=
 RESEND_API_KEY=re_xxxxxxxxxxxxxxxxx
 RESEND_FROM_EMAIL=AI Easy Life <noreply@your-domain.com>

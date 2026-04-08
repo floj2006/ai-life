@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { isAdminEmail } from "@/lib/admin-access";
 import { findDemoLessonById, findDemoLessonBySlug } from "@/lib/content";
@@ -134,11 +134,11 @@ export async function PATCH(request: Request, context: RouteContext) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Нужна авторизация." }, { status: 401 });
   }
 
   if (!isAdminEmail(user.email)) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Недостаточно прав." }, { status: 403 });
   }
 
   const rateLimitResponse = enforceRateLimit({
@@ -162,11 +162,11 @@ export async function PATCH(request: Request, context: RouteContext) {
   try {
     payload = (await request.json()) as PatchPayload;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный формат запроса." }, { status: 400 });
   }
 
   if (!isSubmissionStatus(payload.status)) {
-    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+    return NextResponse.json({ error: "Указан неверный статус." }, { status: 400 });
   }
 
   const validatedMessage = validateTextInput({
@@ -201,7 +201,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   if (existingSubmissionError || !existingSubmission) {
     return NextResponse.json(
-      { error: existingSubmissionError?.message ?? "Submission not found" },
+      { error: existingSubmissionError?.message ?? "Задание не найдено." },
       { status: 404 },
     );
   }
@@ -283,3 +283,5 @@ export async function PATCH(request: Request, context: RouteContext) {
 
   return NextResponse.json({ ok: true });
 }
+
+

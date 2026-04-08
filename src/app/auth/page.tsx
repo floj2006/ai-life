@@ -11,10 +11,42 @@ const highlights = [
   "Прогресс и личный кабинет в одном окне",
 ];
 
-export default async function AuthPage() {
+type AuthPageProps = {
+  searchParams: Promise<{ mode?: string }>;
+};
+
+const getAuthIntro = (rawMode?: string) => {
+  const mode = rawMode === "signup" || rawMode === "forgot" || rawMode === "signin"
+    ? rawMode
+    : "signin";
+
+  if (mode === "signup") {
+    return {
+      title: "Регистрация в личный кабинет",
+      description: "Создайте аккаунт и начните обучение: уроки, задания и проверка будут в одном месте.",
+    };
+  }
+
+  if (mode === "forgot") {
+    return {
+      title: "Восстановление доступа",
+      description: "Введите email справа, мы отправим ссылку для смены пароля и вернем вас в кабинет.",
+    };
+  }
+
+  return {
+    title: "Вход в личный кабинет",
+    description: "Один аккаунт для уроков, заданий и отслеживания прогресса.",
+  };
+};
+
+export default async function AuthPage({ searchParams }: AuthPageProps) {
   if (!isSupabaseConfigured()) {
     redirect("/setup");
   }
+
+  const params = await searchParams;
+  const intro = getAuthIntro(params.mode);
 
   const supabase = await createClient();
   const {
@@ -46,11 +78,9 @@ export default async function AuthPage() {
             </p>
           </div>
 
-          <h1 className="text-3xl font-bold leading-tight md:text-4xl">
-            Вход в личный кабинет
-          </h1>
+          <h1 className="text-3xl font-bold leading-tight md:text-4xl">{intro.title}</h1>
           <p className="small-text mt-2 max-w-xl">
-            Один аккаунт для уроков, быстрых действий и отслеживания прогресса.
+            {intro.description}
           </p>
 
           <ul className="mt-5 grid gap-3">

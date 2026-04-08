@@ -12,7 +12,7 @@ type StartProButtonProps = {
 
 export function StartProButton({
   plan = "max",
-  buttonLabel = "Открыть реквизиты Max",
+  buttonLabel = "Открыть реквизиты Макс",
 }: StartProButtonProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);

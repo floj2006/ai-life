@@ -1,14 +1,16 @@
 ﻿"use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SUBMISSIONS_LAST_SEEN_AT_KEY } from "@/lib/submission-notifications";
 
 type MobileBottomNavProps = {
   isAdmin: boolean;
 };
 
 type NavItem = {
+  key: "courses" | "submissions" | "billing" | "dashboard" | "review" | "admin" | "dialogs";
   href: string;
   label: string;
   startsWith: string[];
@@ -19,39 +21,42 @@ const iconClass = "h-5 w-5";
 
 const userItems: NavItem[] = [
   {
-    href: "/dashboard?section=courses",
+    key: "courses",
+    href: "/dashboard/courses",
     label: "Курсы",
-    startsWith: ["/dashboard"],
+    startsWith: ["/dashboard", "/dashboard/courses"],
     icon: (
-      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M4 19.5V6.5A2.5 2.5 0 0 1 6.5 4H20v15.5a.5.5 0 0 1-.5.5H6.5A2.5 2.5 0 0 0 4 22" />
-        <path d="M8 8h8" />
-        <path d="M8 12h8" />
+      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
+        <path d="M4.5 6.5a2.5 2.5 0 0 1 2.5-2.5H20v14.5a.5.5 0 0 1-.5.5H7A2.5 2.5 0 0 0 4.5 21z" />
+        <path d="M8.5 8.5h7" />
+        <path d="M8.5 12h7" />
       </svg>
     ),
   },
   {
+    key: "submissions",
     href: "/submissions",
     label: "Задания",
-    startsWith: ["/submissions", "/review"],
+    startsWith: ["/submissions"],
     icon: (
-      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="4" y="3" width="16" height="18" rx="2" />
-        <path d="M9 8h6" />
-        <path d="M9 12h6" />
-        <path d="m9 16 1.5 1.5L15 13" />
+      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
+        <rect x="4" y="3" width="16" height="18" rx="2.4" />
+        <path d="M8.5 8.5h7" />
+        <path d="M8.5 12h7" />
+        <path d="m9 16 1.6 1.6L15.5 13" />
       </svg>
     ),
   },
   {
+    key: "billing",
     href: "/billing",
     label: "Тариф",
     startsWith: ["/billing", "/success"],
     icon: (
-      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="2" y="5" width="20" height="14" rx="2" />
-        <path d="M2 10h20" />
-        <path d="M8 15h2" />
+      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
+        <rect x="2.5" y="5" width="19" height="14" rx="2.2" />
+        <path d="M2.5 10.5h19" />
+        <path d="M8 15h2.5" />
       </svg>
     ),
   },
@@ -59,11 +64,12 @@ const userItems: NavItem[] = [
 
 const adminItems: NavItem[] = [
   {
+    key: "dashboard",
     href: "/dashboard",
     label: "Кабинет",
-    startsWith: ["/dashboard"],
+    startsWith: ["/dashboard", "/dashboard/courses"],
     icon: (
-      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2">
+      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
         <rect x="3" y="3" width="8" height="8" rx="2" />
         <rect x="13" y="3" width="8" height="5" rx="2" />
         <rect x="13" y="11" width="8" height="10" rx="2" />
@@ -72,33 +78,36 @@ const adminItems: NavItem[] = [
     ),
   },
   {
+    key: "review",
     href: "/review",
     label: "Проверка",
     startsWith: ["/review"],
     icon: (
-      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2">
+      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
         <path d="m9 11 3 3L22 4" />
         <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
       </svg>
     ),
   },
   {
+    key: "admin",
     href: "/admin",
     label: "Тарифы",
     startsWith: ["/admin"],
     icon: (
-      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2">
+      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
         <circle cx="12" cy="12" r="3" />
         <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.6 1z" />
       </svg>
     ),
   },
   {
+    key: "dialogs",
     href: "/submissions",
     label: "Диалоги",
     startsWith: ["/submissions"],
     icon: (
-      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2">
+      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
       </svg>
     ),
@@ -113,19 +122,86 @@ const isActiveItem = (pathname: string, item: NavItem) => {
   return item.startsWith.some((prefix) => pathname.startsWith(prefix));
 };
 
+const getSeenAtIso = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return window.localStorage.getItem(SUBMISSIONS_LAST_SEEN_AT_KEY);
+};
+
 export function MobileBottomNav({ isAdmin }: MobileBottomNavProps) {
   const pathname = usePathname();
   const items = isAdmin ? adminItems : userItems;
+  const [hasSubmissionUpdates, setHasSubmissionUpdates] = useState(false);
+
+  useEffect(() => {
+    if (isAdmin) {
+      return;
+    }
+
+    let stopped = false;
+
+    const refreshNotifications = async () => {
+      try {
+        const seenAt = getSeenAtIso();
+        const query = seenAt ? `?since=${encodeURIComponent(seenAt)}` : "";
+        const response = await fetch(`/api/submissions/notifications${query}`, {
+          cache: "no-store",
+        });
+
+        if (!response.ok || stopped) {
+          return;
+        }
+
+        const payload = (await response.json()) as { hasUpdates?: boolean };
+        setHasSubmissionUpdates(Boolean(payload.hasUpdates));
+      } catch {
+        if (!stopped) {
+          setHasSubmissionUpdates(false);
+        }
+      }
+    };
+
+    void refreshNotifications();
+
+    const pollId = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void refreshNotifications();
+      }
+    }, 30_000);
+
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === SUBMISSIONS_LAST_SEEN_AT_KEY) {
+        void refreshNotifications();
+      }
+    };
+
+    const onSeen = () => {
+      void refreshNotifications();
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("submissions-seen", onSeen);
+    window.addEventListener("focus", onSeen);
+
+    return () => {
+      stopped = true;
+      clearInterval(pollId);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("submissions-seen", onSeen);
+      window.removeEventListener("focus", onSeen);
+    };
+  }, [isAdmin]);
 
   return (
-    <nav
-      className="fixed inset-x-2 bottom-2 z-40 md:hidden"
-      aria-label="Мобильная навигация"
-    >
-      <div className="mx-auto w-full max-w-xl rounded-2xl border border-[var(--line)] bg-white/95 px-2 py-2 shadow-[0_14px_36px_rgba(8,47,73,0.18)] backdrop-blur">
+    <nav className="fixed inset-x-2 bottom-2 z-40 md:hidden" aria-label="Мобильная навигация">
+      <div className="mx-auto w-full max-w-xl rounded-2xl border border-[var(--line)] bg-white/96 px-2 py-2 shadow-[0_16px_38px_rgba(8,47,73,0.2)] backdrop-blur">
         <ul className={`grid gap-1 ${isAdmin ? "grid-cols-5" : "grid-cols-3"}`}>
           {items.map((item) => {
             const active = isActiveItem(pathname, item);
+            const showSubmissionDot =
+              !isAdmin && item.key === "submissions" && hasSubmissionUpdates;
 
             return (
               <li key={item.href}>
@@ -137,7 +213,16 @@ export function MobileBottomNav({ isAdmin }: MobileBottomNavProps) {
                       : "text-[var(--ink-soft)] hover:bg-sky-50 hover:text-[var(--ink)]"
                   }`}
                 >
-                  {item.icon}
+                  <span
+                    className={`relative flex h-8 w-8 items-center justify-center rounded-lg ${
+                      active ? "bg-white/20" : "bg-sky-50 text-sky-700"
+                    }`}
+                  >
+                    {item.icon}
+                    {showSubmissionDot ? (
+                      <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-white" />
+                    ) : null}
+                  </span>
                   <span className="mt-1 leading-none">{item.label}</span>
                 </Link>
               </li>
@@ -148,5 +233,3 @@ export function MobileBottomNav({ isAdmin }: MobileBottomNavProps) {
     </nav>
   );
 }
-
-

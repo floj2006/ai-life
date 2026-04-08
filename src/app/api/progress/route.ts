@@ -1,4 +1,4 @@
-﻿import { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { enforceRateLimit } from "@/lib/rate-limit";
 import {
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: "Нужна авторизация." }, { status: 401 });
   }
 
   const rateLimitResponse = enforceRateLimit({
@@ -82,11 +82,11 @@ export async function POST(request: Request) {
   try {
     payload = (await request.json()) as ProgressPayload;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный формат запроса." }, { status: 400 });
   }
 
   if (!payload.lessonId || typeof payload.completed !== "boolean") {
-    return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    return NextResponse.json({ error: "Отсутствуют обязательные поля." }, { status: 400 });
   }
 
   const [lessonResult, userAccess] = await Promise.all([
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
   ]);
 
   if (lessonResult.error || !lessonResult.data) {
-    return NextResponse.json({ error: "Lesson not found" }, { status: 404 });
+    return NextResponse.json({ error: "Урок не найден." }, { status: 404 });
   }
 
   const lesson = lessonResult.data as LessonAccessRow;
@@ -147,3 +147,5 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true });
 }
+
+

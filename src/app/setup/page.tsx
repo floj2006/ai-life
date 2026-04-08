@@ -56,7 +56,7 @@ export default function SetupPage() {
         <pre className="mt-3 overflow-x-auto rounded-2xl bg-cyan-50 p-4 text-sm leading-relaxed">{`NEXT_PUBLIC_SUPABASE_URL=https://your-project-ref.supabase.co
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=ваш_публичный_ключ
 SUPABASE_SERVICE_ROLE_KEY=ваш_service_role_ключ
-APP_ADMIN_EMAILS=ваш@email.ru
+APP_ADMIN_EMAILS=neuroproai@gmail.com
 NEXT_PUBLIC_APP_URL=https://ваш-домен.onrender.com`}</pre>
         <p className="small-text mt-3">
           Проект также поддерживает алиасы: `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY`,

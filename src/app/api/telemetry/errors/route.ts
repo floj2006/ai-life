@@ -37,12 +37,12 @@ export async function POST(request: Request) {
   try {
     payload = (await request.json()) as Payload;
   } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+    return NextResponse.json({ error: "Некорректный формат запроса." }, { status: 400 });
   }
 
   const message = sanitizeText(payload.message, 1500);
   if (!message) {
-    return NextResponse.json({ error: "Missing message" }, { status: 400 });
+    return NextResponse.json({ error: "Не передано сообщение об ошибке." }, { status: 400 });
   }
 
   let userId: string | null = null;
@@ -76,3 +76,5 @@ export async function POST(request: Request) {
 
   return NextResponse.json({ ok: true });
 }
+
+
