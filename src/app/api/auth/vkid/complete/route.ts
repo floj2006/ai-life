@@ -42,13 +42,64 @@ const normalizeText = (value: string | null | undefined, maxLength = 120) => {
   return text.slice(0, maxLength);
 };
 
-const getAppUrl = (request: Request) => {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL?.trim();
-  if (appUrl && /^https?:\/\//.test(appUrl)) {
-    return appUrl.replace(/\/+$/, "");
+const isLocalHostname = (hostname: string) => {
+  const value = hostname.toLowerCase();
+  return value === "localhost" || value === "127.0.0.1" || value === "0.0.0.0";
+};
+
+const parsePublicUrl = (raw: string | null | undefined) => {
+  const value = (raw ?? "").trim();
+  if (!value || !/^https?:\/\//.test(value)) {
+    return null;
   }
 
-  return new URL(request.url).origin.replace(/\/+$/, "");
+  try {
+    const parsed = new URL(value);
+    if (isLocalHostname(parsed.hostname)) {
+      return null;
+    }
+    return parsed.origin.replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
+};
+
+const getAppUrl = (request: Request) => {
+  const envCandidates = [
+    process.env.APP_URL,
+    process.env.NEXT_PUBLIC_APP_URL,
+    process.env.RENDER_EXTERNAL_URL,
+  ];
+
+  for (const candidate of envCandidates) {
+    const parsed = parsePublicUrl(candidate);
+    if (parsed) {
+      return parsed;
+    }
+  }
+
+  const forwardedHost =
+    request.headers.get("x-forwarded-host")?.trim() ||
+    request.headers.get("host")?.trim() ||
+    "";
+  const forwardedProto = request.headers.get("x-forwarded-proto")?.trim() || "https";
+  const forwardedHostname = forwardedHost.split(":")[0];
+
+  if (forwardedHostname && !isLocalHostname(forwardedHostname)) {
+    const protocol = forwardedProto === "http" || forwardedProto === "https" ? forwardedProto : "https";
+    return `${protocol}://${forwardedHost}`;
+  }
+
+  try {
+    const requestUrl = new URL(request.url);
+    if (!isLocalHostname(requestUrl.hostname)) {
+      return requestUrl.origin.replace(/\/+$/, "");
+    }
+  } catch {
+    // ignore
+  }
+
+  return "https://ai-life-platform.onrender.com";
 };
 
 const buildSupabaseVerifyUrl = (token: string, redirectTo: string) => {
