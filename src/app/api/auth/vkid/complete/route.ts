@@ -119,6 +119,21 @@ const buildSupabaseVerifyUrl = (token: string, redirectTo: string) => {
   }
 };
 
+const extractVerifyToken = (actionLink: string, hashedToken?: string | null) => {
+  const direct = (hashedToken ?? "").trim();
+  if (direct) {
+    return direct;
+  }
+
+  try {
+    const parsed = new URL(actionLink);
+    const token = parsed.searchParams.get("token")?.trim() ?? "";
+    return token || null;
+  } catch {
+    return null;
+  }
+};
+
 const normalizeMagicLinkUrl = (actionLink: string) => {
   try {
     return new URL(actionLink).toString();
@@ -308,7 +323,7 @@ export async function POST(request: Request) {
     }
 
     const appUrl = getAppUrl(request);
-    const redirectTo = `${appUrl}/auth/callback?next=/dashboard`;
+    const redirectTo = `${appUrl}/auth`;
     const magicLink = await admin.auth.admin.generateLink({
       type: "magiclink",
       email: authEmail,
@@ -326,8 +341,8 @@ export async function POST(request: Request) {
       throw new Error("Supabase не вернул ссылку входа.");
     }
 
-    const hashedToken = magicLink.data.properties?.hashed_token?.trim();
-    const verifyUrl = hashedToken ? buildSupabaseVerifyUrl(hashedToken, redirectTo) : null;
+    const verifyToken = extractVerifyToken(actionLink, magicLink.data.properties?.hashed_token);
+    const verifyUrl = verifyToken ? buildSupabaseVerifyUrl(verifyToken, redirectTo) : null;
     const normalizedLoginUrl = verifyUrl ?? normalizeMagicLinkUrl(actionLink);
 
     return NextResponse.json({
