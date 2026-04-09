@@ -51,7 +51,12 @@ RESEND_FROM_EMAIL=AI Easy Life <noreply@your-domain.com>
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY` должен быть публичным ключом.
 - `APP_ADMIN_EMAILS` принимает список email через запятую.
 - `RESEND_FROM_EMAIL` должен быть подтвержден в Resend.
-- В Supabase Auth -> URL Configuration добавьте `http://localhost:3000/reset-password`.
+- В Supabase Auth -> URL Configuration добавьте:
+  - `http://localhost:3000/reset-password`
+  - `http://localhost:3000/auth/callback`
+- Для прода добавьте такие же пути с вашим доменом, например:
+  - `https://ai-life-platform.onrender.com/reset-password`
+  - `https://ai-life-platform.onrender.com/auth/callback`
 
 ## База данных
 Запустите SQL из:

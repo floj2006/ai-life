@@ -9,6 +9,7 @@ type Mode = "signin" | "signup" | "forgot";
 
 const RESET_COOLDOWN_KEY = "auth_reset_password_cooldown_until";
 const RESET_COOLDOWN_SECONDS = 60;
+const VK_PROVIDER_CANDIDATES = ["custom:vkid", "custom:vk", "vkid", "vk"] as const;
 
 const isLocalHostname = (hostname: string) => {
   return (
@@ -45,6 +46,23 @@ const resolveAppUrl = () => {
   return normalizedEnvUrl;
 };
 
+const resolveVkProviders = () => {
+  const raw = process.env.NEXT_PUBLIC_SUPABASE_VK_PROVIDER?.trim();
+  const candidates = raw
+    ? [raw.toLowerCase(), ...VK_PROVIDER_CANDIDATES]
+    : [...VK_PROVIDER_CANDIDATES];
+
+  const unique: string[] = [];
+  for (const item of candidates) {
+    if (!item || unique.includes(item)) {
+      continue;
+    }
+    unique.push(item);
+  }
+
+  return unique;
+};
+
 const toReadableAuthError = (message: string, mode: Mode) => {
   const normalized = message.toLowerCase();
 
@@ -59,6 +77,14 @@ const toReadableAuthError = (message: string, mode: Mode) => {
 
   if (normalized.includes("invalid login credentials")) {
     return "Неверный email или пароль.";
+  }
+
+  if (normalized.includes("unsupported provider")) {
+    return "Вход через VK ID пока не включен. Проверьте провайдер VK в Supabase Auth.";
+  }
+
+  if (normalized.includes("redirect url")) {
+    return "Не настроен Redirect URL для VK ID. Добавьте адрес сайта в Supabase → Auth → URL Configuration.";
   }
 
   return message;
@@ -260,6 +286,55 @@ export function AuthForm() {
     }
   };
 
+  const onVkLogin = async () => {
+    setIsLoading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const appUrl = resolveAppUrl();
+      const redirectTo = appUrl ? `${appUrl}/auth/callback?next=/dashboard` : undefined;
+      const providers = resolveVkProviders();
+      let lastError: Error | null = null;
+
+      for (const provider of providers) {
+        trackClientEvent("auth_vk_started", {
+          mode,
+          provider,
+        });
+
+        const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+          provider: provider as never,
+          options: {
+            redirectTo,
+            skipBrowserRedirect: true,
+          },
+        });
+
+        if (!oauthError && data?.url) {
+          trackClientEvent("auth_vk_redirected", {
+            mode,
+            provider,
+          });
+
+          window.location.assign(data.url);
+          return;
+        }
+
+        lastError = oauthError ?? new Error("Не удалось запустить VK ID авторизацию.");
+      }
+
+      throw lastError ?? new Error("Не удалось запустить VK ID авторизацию.");
+    } catch (oauthError) {
+      setError(
+        oauthError instanceof Error
+          ? toReadableAuthError(oauthError.message, mode)
+          : "Не удалось запустить VK ID авторизацию.",
+      );
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="surface auth-form-shell mx-auto w-full max-w-md p-5 md:p-7">
       <div className="mb-4">
@@ -379,6 +454,27 @@ export function AuthForm() {
                   : "Отправить ссылку для сброса"}
         </button>
       </form>
+
+      {mode !== "forgot" ? (
+        <>
+          <div className="my-3 flex items-center gap-2">
+            <span className="h-px flex-1 bg-[var(--line)]" />
+            <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              или
+            </span>
+            <span className="h-px flex-1 bg-[var(--line)]" />
+          </div>
+
+          <button
+            type="button"
+            onClick={onVkLogin}
+            disabled={isLoading}
+            className="action-button secondary-button w-full"
+          >
+            {isLoading ? "Подключаем VK ID..." : "Продолжить через VK ID"}
+          </button>
+        </>
+      ) : null}
 
       {mode === "signin" ? (
         <button
