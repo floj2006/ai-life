@@ -10,6 +10,31 @@ type Mode = "signin" | "signup" | "forgot";
 const RESET_COOLDOWN_KEY = "auth_reset_password_cooldown_until";
 const RESET_COOLDOWN_SECONDS = 60;
 const VK_PROVIDER_CANDIDATES = ["custom:vkid", "custom:vk", "vkid", "vk"] as const;
+const VKID_SDK_URL = "https://unpkg.com/@vkid/sdk@<3.0.0/dist-sdk/umd/index.js";
+const VKID_SDK_SCRIPT_ID = "vkid-sdk-script";
+
+type VkidSdk = {
+  Config: {
+    init: (config: {
+      app: number;
+      redirectUrl: string;
+      responseMode: unknown;
+      source: unknown;
+      scope?: string;
+    }) => void;
+  };
+  ConfigResponseMode: {
+    Callback: unknown;
+  };
+  ConfigSource: {
+    LOWCODE: unknown;
+  };
+  Auth: {
+    login: () => Promise<unknown>;
+    exchangeCode: (code: string, deviceId: string) => Promise<Record<string, unknown>>;
+    userInfo: (accessToken: string) => Promise<Record<string, unknown>>;
+  };
+};
 
 const isLocalHostname = (hostname: string) => {
   return (
@@ -61,6 +86,124 @@ const resolveVkProviders = () => {
   }
 
   return unique;
+};
+
+const loadVkidSdk = async (): Promise<VkidSdk> => {
+  if (typeof window === "undefined") {
+    throw new Error("VK ID доступен только в браузере.");
+  }
+
+  const existing = (window as Window & { VKIDSDK?: VkidSdk }).VKIDSDK;
+  if (existing) {
+    return existing;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const prior = document.getElementById(VKID_SDK_SCRIPT_ID) as HTMLScriptElement | null;
+    if (prior) {
+      prior.addEventListener("load", () => resolve(), { once: true });
+      prior.addEventListener("error", () => reject(new Error("Не удалось загрузить VK ID SDK.")), {
+        once: true,
+      });
+      return;
+    }
+
+    const script = document.createElement("script");
+    script.id = VKID_SDK_SCRIPT_ID;
+    script.src = VKID_SDK_URL;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Не удалось загрузить VK ID SDK."));
+    document.head.appendChild(script);
+  });
+
+  const sdk = (window as Window & { VKIDSDK?: VkidSdk }).VKIDSDK;
+  if (!sdk) {
+    throw new Error("VK ID SDK не инициализировался.");
+  }
+
+  return sdk;
+};
+
+const extractVkCodePayload = (value: unknown): { code: string; deviceId: string } | null => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const payload = value as Record<string, unknown>;
+  const code = typeof payload.code === "string" ? payload.code.trim() : "";
+  const deviceId =
+    typeof payload.device_id === "string"
+      ? payload.device_id.trim()
+      : typeof payload.deviceId === "string"
+        ? payload.deviceId.trim()
+        : "";
+
+  if (!code || !deviceId) {
+    return null;
+  }
+
+  return { code, deviceId };
+};
+
+const extractVkAccessToken = (value: unknown) => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const payload = value as Record<string, unknown>;
+  const token =
+    typeof payload.access_token === "string"
+      ? payload.access_token.trim()
+      : typeof payload.accessToken === "string"
+        ? payload.accessToken.trim()
+        : "";
+
+  return token || null;
+};
+
+const extractVkUser = (value: unknown) => {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const payload = value as Record<string, unknown>;
+  const userRaw =
+    payload.user && typeof payload.user === "object" ? (payload.user as Record<string, unknown>) : payload;
+
+  const firstName =
+    typeof userRaw.first_name === "string"
+      ? userRaw.first_name
+      : typeof userRaw.firstName === "string"
+        ? userRaw.firstName
+        : null;
+  const lastName =
+    typeof userRaw.last_name === "string"
+      ? userRaw.last_name
+      : typeof userRaw.lastName === "string"
+        ? userRaw.lastName
+        : null;
+  const email =
+    typeof userRaw.email === "string"
+      ? userRaw.email
+      : typeof userRaw.mail === "string"
+        ? userRaw.mail
+        : null;
+
+  const displayName =
+    typeof userRaw.full_name === "string"
+      ? userRaw.full_name
+      : typeof userRaw.name === "string"
+        ? userRaw.name
+        : [firstName, lastName].filter(Boolean).join(" ").trim() || null;
+
+  return {
+    firstName,
+    lastName,
+    email,
+    displayName,
+  };
 };
 
 const toReadableAuthError = (message: string, mode: Mode) => {
@@ -293,6 +436,73 @@ export function AuthForm() {
 
     try {
       const appUrl = resolveAppUrl();
+      const vkidAppIdRaw = process.env.NEXT_PUBLIC_VKID_APP_ID?.trim();
+      const vkidAppId = vkidAppIdRaw ? Number(vkidAppIdRaw) : Number.NaN;
+      const vkidScope = process.env.NEXT_PUBLIC_VKID_SCOPE?.trim() || "email";
+
+      if (Number.isFinite(vkidAppId) && vkidAppId > 0) {
+        const sdk = await loadVkidSdk();
+
+        sdk.Config.init({
+          app: vkidAppId,
+          redirectUrl: appUrl ? `${appUrl}/auth` : window.location.origin,
+          responseMode: sdk.ConfigResponseMode.Callback,
+          source: sdk.ConfigSource.LOWCODE,
+          scope: vkidScope,
+        });
+
+        trackClientEvent("auth_vk_started", {
+          mode,
+          provider: "vkid_sdk",
+        });
+
+        const loginPayload = await sdk.Auth.login();
+        const codeData = extractVkCodePayload(loginPayload);
+        if (!codeData) {
+          throw new Error("VK ID не вернул код авторизации.");
+        }
+
+        const tokenPayload = await sdk.Auth.exchangeCode(codeData.code, codeData.deviceId);
+        const accessToken = extractVkAccessToken(tokenPayload);
+        if (!accessToken) {
+          throw new Error("VK ID не вернул access token.");
+        }
+
+        const userPayload = await sdk.Auth.userInfo(accessToken);
+        const user = extractVkUser(userPayload);
+
+        const completeResponse = await fetch("/api/auth/vkid/complete", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            accessToken,
+            contactEmail: user?.email ?? null,
+            firstName: user?.firstName ?? null,
+            lastName: user?.lastName ?? null,
+            displayName: user?.displayName ?? null,
+          }),
+        });
+
+        const completeRaw = await completeResponse.text();
+        const completePayload = completeRaw
+          ? (JSON.parse(completeRaw) as { loginUrl?: string; error?: string })
+          : {};
+
+        if (!completeResponse.ok || !completePayload.loginUrl) {
+          throw new Error(completePayload.error ?? "Не удалось завершить вход через VK ID.");
+        }
+
+        trackClientEvent("auth_vk_redirected", {
+          mode,
+          provider: "vkid_magiclink",
+        });
+
+        window.location.assign(completePayload.loginUrl);
+        return;
+      }
+
       const redirectTo = appUrl ? `${appUrl}/auth/callback?next=/dashboard` : undefined;
       const providers = resolveVkProviders();
       let lastError: Error | null = null;
