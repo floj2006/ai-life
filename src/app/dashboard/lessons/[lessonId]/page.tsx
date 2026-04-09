@@ -1,5 +1,6 @@
 ﻿import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { CopyPromptButton } from "@/components/dashboard/copy-prompt-button";
 import { LessonCategoryChip } from "@/components/dashboard/lesson-category-chip";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
@@ -34,6 +35,92 @@ const tierBadgeClass = (tier: "newbie" | "start" | "max") => {
 };
 
 const MAX_PROMPT_PREVIEW = 280;
+const PROMPT_WARNING_HEADER = "Важно перед запуском (выбор за вами):";
+const PROMPT_SECTION_HEADER = "Структура промпта:";
+const URL_REGEX = /(https?:\/\/[^\s)]+|www\.[^\s)]+)/gi;
+
+const normalizeMultiline = (value: string) => value.replace(/\r\n/g, "\n").trim();
+
+const extractPromptOnly = (value: string) => {
+  const normalized = normalizeMultiline(value);
+  const match = normalized.match(
+    /(?:^|\n)Промпт:\n([\s\S]*?)(?:\n\nЧто должно получиться:|$)/,
+  );
+
+  return match?.[1]?.trim() || normalized;
+};
+
+const extractPromptWarningLines = (value: string) => {
+  const normalized = normalizeMultiline(value);
+  const warningStart = normalized.indexOf(PROMPT_WARNING_HEADER);
+  if (warningStart === -1) {
+    return [];
+  }
+
+  const fromWarning = normalized.slice(warningStart);
+  const sectionMarker = `\n${PROMPT_SECTION_HEADER}`;
+  const warningEnd = fromWarning.indexOf(sectionMarker);
+  const warningBlock = warningEnd === -1 ? fromWarning : fromWarning.slice(0, warningEnd);
+
+  return warningBlock
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+};
+
+const toHref = (rawUrl: string) => (rawUrl.startsWith("http") ? rawUrl : `https://${rawUrl}`);
+
+const linkifyInlineText = (text: string) => {
+  const matches = [...text.matchAll(URL_REGEX)];
+  if (matches.length === 0) {
+    return text;
+  }
+
+  const nodes: ReactNode[] = [];
+  let cursor = 0;
+
+  for (let index = 0; index < matches.length; index += 1) {
+    const match = matches[index];
+    const full = match[0];
+    const start = match.index ?? 0;
+    const end = start + full.length;
+
+    if (start > cursor) {
+      nodes.push(text.slice(cursor, start));
+    }
+
+    nodes.push(
+      <a
+        key={`url-${index}-${full}`}
+        href={toHref(full)}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold text-sky-700 underline decoration-sky-300 underline-offset-2 transition hover:text-sky-800"
+      >
+        {full}
+      </a>,
+    );
+
+    cursor = end;
+  }
+
+  if (cursor < text.length) {
+    nodes.push(text.slice(cursor));
+  }
+
+  return nodes;
+};
+
+const renderMultilineWithLinks = (text: string) => {
+  const lines = text.split("\n");
+
+  return lines.map((line, index) => (
+    <span key={`line-${index}`}>
+      {linkifyInlineText(line)}
+      {index < lines.length - 1 ? <br /> : null}
+    </span>
+  ));
+};
 
 export default async function LessonPage({ params }: LessonPageProps) {
   const { lessonId } = await params;
@@ -54,10 +141,15 @@ export default async function LessonPage({ params }: LessonPageProps) {
   const homeworkMistakes = getHomeworkCommonMistakes(lesson.category);
   const primaryToolUrl = lesson.ai_tool_url;
   const isAdmin = isAdminEmail(profile.email);
-  const hasLongPrompt = lesson.prompt_template.length > MAX_PROMPT_PREVIEW;
+  const promptOnly = extractPromptOnly(lesson.prompt_template);
+  const promptWarningLines = extractPromptWarningLines(lesson.prompt_template);
+  const promptWarningHeader =
+    promptWarningLines.length > 0 ? promptWarningLines[0] : PROMPT_WARNING_HEADER;
+  const promptWarningItems = promptWarningLines.slice(1);
+  const hasLongPrompt = promptOnly.length > MAX_PROMPT_PREVIEW;
   const promptPreview = hasLongPrompt
-    ? `${lesson.prompt_template.slice(0, MAX_PROMPT_PREVIEW).trimEnd()}...`
-    : lesson.prompt_template;
+    ? `${promptOnly.slice(0, MAX_PROMPT_PREVIEW).trimEnd()}...`
+    : promptOnly;
 
   return (
     <main className="container-shell with-mobile-nav flex flex-col gap-4 py-4 md:gap-6 md:py-8">
@@ -218,9 +310,22 @@ export default async function LessonPage({ params }: LessonPageProps) {
             Короткая версия
           </p>
           <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)]">
-            {promptPreview}
+            {renderMultilineWithLinks(promptPreview)}
           </p>
         </div>
+
+        {promptWarningItems.length > 0 ? (
+          <div className="mt-3 rounded-[24px] border border-rose-200 bg-rose-50/90 p-4 ring-1 ring-rose-100">
+            <p className="text-xs font-bold uppercase tracking-widest text-rose-700">
+              {promptWarningHeader.replace(/:$/, "")}
+            </p>
+            <div className="mt-2 grid gap-2 text-sm leading-relaxed text-rose-900">
+              {promptWarningItems.map((line, index) => (
+                <p key={`warning-${index}`}>{renderMultilineWithLinks(line)}</p>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {hasLongPrompt ? (
           <details className="mt-3 rounded-[24px] border border-[var(--line)] bg-white/90 p-4">
@@ -228,7 +333,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
               Показать полный промпт
             </summary>
             <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-[var(--ink)]">
-              {lesson.prompt_template}
+              {renderMultilineWithLinks(promptOnly)}
             </p>
           </details>
         ) : null}
@@ -363,5 +468,7 @@ export default async function LessonPage({ params }: LessonPageProps) {
     </main>
   );
 }
+
+
 
 

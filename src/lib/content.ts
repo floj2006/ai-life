@@ -51,6 +51,16 @@ const { lessonCatalogData } = lessonCatalogSource as {
 };
 
 const BEGINNER_PROMPT_HEADER = "Задача урока:";
+const PROMPT_WARNING_HEADER = "Важно перед запуском (выбор за вами):";
+const MAIN_NEURAL_NETWORK_LINKS = [
+  "Syntx AI (все нейросети в одном месте): https://syntx.ai/welcome/cE7WYqi2",
+  "ChatGPT: https://chatgpt.com",
+  "Claude: https://claude.ai",
+  "Gemini: https://gemini.google.com",
+  "Midjourney: https://www.midjourney.com",
+  "Runway: https://runwayml.com",
+  "Pika: https://pika.art",
+] as const;
 
 const DEFAULT_VIDEO_BY_CATEGORY: Record<LessonCategory, string> = {
   photo: SYNTX_AI_URL,
@@ -516,6 +526,31 @@ const buildPromptExample = (
   }, prompt);
 };
 
+const buildPromptWarningBlock = () => [
+  PROMPT_WARNING_HEADER,
+  "- Вы можете делать бесплатно: это возможно, но обычно дольше и сложнее по настройке.",
+  "- Вы можете работать через Syntx AI: это платно, зато там уже собраны нейросети в одном месте и старт быстрее.",
+  "- Вы можете использовать нейросети напрямую: гибко, но часто дороже при оплате каждого сервиса отдельно.",
+  "Основные нейросети (официальные ссылки):",
+  ...MAIN_NEURAL_NETWORK_LINKS.map((item) => `- ${item}`),
+];
+
+const injectWarningIntoExistingPromptTemplate = (prompt: string) => {
+  if (prompt.includes(PROMPT_WARNING_HEADER)) {
+    return prompt;
+  }
+
+  const marker = "\nСтруктура промпта:";
+  if (prompt.includes(marker)) {
+    return prompt.replace(
+      marker,
+      `\n${buildPromptWarningBlock().join("\n")}\n${marker}`,
+    );
+  }
+
+  return `${prompt}\n\n${buildPromptWarningBlock().join("\n")}`;
+};
+
 const buildLessonSteps = (
   category: LessonCategory,
   replaceHint: string,
@@ -640,7 +675,7 @@ export const buildBeginnerPromptTemplate = ({
     : "";
 
   if (prompt.startsWith(BEGINNER_PROMPT_HEADER)) {
-    return prompt;
+    return injectWarningIntoExistingPromptTemplate(prompt);
   }
 
   const guide = getSyntxModelGuide(category);
@@ -652,6 +687,9 @@ export const buildBeginnerPromptTemplate = ({
     `Рекомендуемая модель в Syntx AI: ${guide.primary}.`,
     "Перед запуском замените значения в фигурных скобках на свои данные.",
     placeholdersLine,
+    "",
+    ...buildPromptWarningBlock(),
+    "",
     "Структура промпта:",
     ...structureLines.map((line) => `- ${line}`),
     "",

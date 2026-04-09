@@ -17,8 +17,8 @@ export const plans: Plan[] = [
     id: "start",
     title: "Старт",
     subtitle: "Практика в Syntx AI каждый день",
-    priceRub: 999,
-    priceLabel: "999 ₽",
+    priceRub: 1999,
+    priceLabel: "1 999 ₽",
     features: [
       "Доступ к урокам уровня «Новичок» и «Старт»",
       "Практика в одном сервисе: Syntx AI",
@@ -29,8 +29,8 @@ export const plans: Plan[] = [
     id: "max",
     title: "Макс",
     subtitle: `Полный доступ ко всем ${LESSONS_TOTAL} урокам`,
-    priceRub: 1999,
-    priceLabel: "1 999 ₽",
+    priceRub: 2999,
+    priceLabel: "2 999 ₽",
     features: [
       "Все возможности тарифа «Старт»",
       "Уроки уровня «Макс» (продвинутые сценарии)",

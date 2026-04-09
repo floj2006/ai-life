@@ -78,8 +78,8 @@ Storage bucket:
 4. вы вручную выдаете доступ через `/admin`
 
 Тарифы:
-- `Start` — `999 ₽`
-- `Max` — `1 999 ₽`
+- `Start` — `1 999 ₽`
+- `Max` — `2 999 ₽`
 
 Legacy YooKassa:
 - роуты `src/app/api/yookassa/*` пока остаются в репозитории как legacy-слой
