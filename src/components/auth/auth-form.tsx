@@ -214,6 +214,32 @@ const safeDecodeUriComponent = (value: string) => {
   }
 };
 
+const buildSafeVkidLoginUrl = (rawUrl: string, appUrl: string) => {
+  try {
+    const parsed = new URL(rawUrl);
+
+    if (parsed.pathname.startsWith("/auth/v1/verify")) {
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+      if (supabaseUrl && /^https?:\/\//.test(supabaseUrl)) {
+        const supa = new URL(supabaseUrl);
+        parsed.protocol = supa.protocol;
+        parsed.host = supa.host;
+      }
+
+      parsed.searchParams.set("redirect_to", `${appUrl}/auth`);
+      return parsed.toString();
+    }
+
+    if (isLocalHostname(parsed.hostname) && parsed.hash.includes("access_token=")) {
+      return `${appUrl}/auth${parsed.hash}`;
+    }
+
+    return parsed.toString();
+  } catch {
+    return rawUrl;
+  }
+};
+
 const toReadableAuthError = (message: string, mode: Mode) => {
   const normalized = message.toLowerCase();
 
@@ -302,7 +328,13 @@ export function AuthForm() {
         throw new Error(completePayload.error ?? "Не удалось завершить вход через VK ID.");
       }
 
-      window.location.assign(completePayload.loginUrl);
+      const appUrl = resolveAppUrl();
+      const safeLoginUrl = buildSafeVkidLoginUrl(
+        completePayload.loginUrl,
+        appUrl || window.location.origin.replace(/\/+$/, ""),
+      );
+
+      window.location.assign(safeLoginUrl);
     },
     [],
   );
@@ -342,6 +374,53 @@ export function AuthForm() {
       setCooldownUntil(parsed);
     }
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const hash = window.location.hash.startsWith("#")
+      ? window.location.hash.slice(1)
+      : window.location.hash;
+    if (!hash) {
+      return;
+    }
+
+    const params = new URLSearchParams(hash);
+    const accessToken = params.get("access_token");
+    const refreshToken = params.get("refresh_token");
+    if (!accessToken || !refreshToken) {
+      return;
+    }
+
+    setIsLoading(true);
+    setError("");
+
+    supabase.auth
+      .setSession({
+        access_token: accessToken,
+        refresh_token: refreshToken,
+      })
+      .then(({ error: sessionError }) => {
+        if (sessionError) {
+          setError(toReadableAuthError(sessionError.message, mode));
+          return;
+        }
+
+        try {
+          window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
+        } catch {
+          // noop
+        }
+
+        router.replace("/dashboard");
+        router.refresh();
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [mode, router, supabase]);
 
   useEffect(() => {
     let active = true;
