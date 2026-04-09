@@ -270,7 +270,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       .maybeSingle();
 
     const student = studentResult.data
-      ? (decryptRecordFields(studentResult.data as Record<string, unknown>, [
+      ? (decryptRecordFields(studentResult.data as StudentRow, [
           "full_name",
           "email",
         ]) as StudentRow)

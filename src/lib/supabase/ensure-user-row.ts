@@ -1,4 +1,4 @@
-import "server-only";
+п»їimport "server-only";
 import { encryptOptional } from "@/lib/security/encryption";
 
 type AuthLikeUser = {
@@ -118,6 +118,6 @@ export const ensureUserRowExists = async (
 
   return (
     lastErrorMessage ??
-    "Не удалось синхронизировать профиль пользователя в таблице users."
+    "РќРµ СѓРґР°Р»РѕСЃСЊ СЃРёРЅС…СЂРѕРЅРёР·РёСЂРѕРІР°С‚СЊ РїСЂРѕС„РёР»СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РІ С‚Р°Р±Р»РёС†Рµ users."
   );
 };

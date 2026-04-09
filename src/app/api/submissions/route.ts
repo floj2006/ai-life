@@ -302,7 +302,7 @@ export async function GET(request: Request) {
     }
 
     const items = (data ?? []).map((row) =>
-      decryptRecordFields(row as Record<string, unknown>, ["result_link", "student_comment"]),
+      decryptRecordFields(row, ["result_link", "student_comment"]),
     );
     return NextResponse.json({ items });
   }
@@ -318,7 +318,7 @@ export async function GET(request: Request) {
   }
 
   const items = (data ?? []).map((row) =>
-    decryptRecordFields(row as Record<string, unknown>, ["result_link", "student_comment"]),
+    decryptRecordFields(row, ["result_link", "student_comment"]),
   );
   return NextResponse.json({ items });
 }
@@ -455,7 +455,7 @@ export async function POST(request: Request) {
   );
   const studentProfile = studentProfileResult.data as StudentProfileRow | null;
   const decryptedStudentProfile = studentProfile
-    ? (decryptRecordFields(studentProfile as Record<string, unknown>, [
+    ? (decryptRecordFields(studentProfile, [
         "full_name",
         "email",
       ]) as StudentProfileRow)

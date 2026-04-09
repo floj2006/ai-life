@@ -402,14 +402,14 @@ export default async function AdminPage() {
   const decryptedUsers = usersTableMissing
     ? []
     : ((usersResult.data ?? []) as AdminUserRow[]).map((row) =>
-        decryptRecordFields(row as Record<string, unknown>, ["full_name", "email"]),
+        decryptRecordFields(row, ["full_name", "email"]),
       );
   const users = usersTableMissing ? authRows : mergeUsers(decryptedUsers, authRows);
 
   const submissionsRaw = submissionsTableMissing
     ? []
     : ((submissionsResult.data ?? []) as SubmissionRow[]).map((row) =>
-        decryptRecordFields(row as Record<string, unknown>, ["result_link", "student_comment"]),
+        decryptRecordFields(row, ["result_link", "student_comment"]),
       );
 
   const submissions: LessonSubmission[] = submissionsRaw
@@ -466,9 +466,7 @@ export default async function AdminPage() {
       warnings.push("Таблица public.lessons не найдена: названия уроков взяты из встроенного списка.");
     }
 
-    messages = (messagesResult.data ?? []).map((row) =>
-      decryptRecordFields(row as Record<string, unknown>, ["message"]),
-    ) as SubmissionMessage[];
+    messages = (messagesResult.data ?? []).map((row) => decryptRecordFields(row, ["message"])) as SubmissionMessage[];
     lessonReferenceMap = buildDbLessonReferenceMap(
       (lessonReferenceResult.data ?? []) as LessonReferenceRow[],
     );
@@ -556,10 +554,10 @@ export default async function AdminPage() {
     }));
 
   const auditLogs = auditTableMissing
-    ? []
-    : ((auditLogsResult.data ?? []) as AdminAuditLogRow[]).map((row) =>
-        decryptRecordFields(row as Record<string, unknown>, ["actor_email"]),
-      );
+      ? []
+      : ((auditLogsResult.data ?? []) as AdminAuditLogRow[]).map((row) =>
+          decryptRecordFields(row, ["actor_email"]),
+        );
   const adminFullName =
     typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim().length > 0
       ? user.user_metadata.full_name

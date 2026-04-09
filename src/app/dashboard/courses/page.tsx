@@ -39,7 +39,7 @@ export default async function DashboardCoursesPage() {
 
   const submissions = ((submissionsData ?? []) as SubmissionRow[])
     .map((item) =>
-      decryptRecordFields(item as Record<string, unknown>, ["student_comment", "result_link"]),
+      decryptRecordFields(item, ["student_comment", "result_link"]),
     )
     .filter((item) => isSubmissionStatus(item.status))
     .map((item) => ({

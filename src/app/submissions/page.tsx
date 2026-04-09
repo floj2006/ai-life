@@ -50,9 +50,9 @@ export default async function SubmissionsPage({ searchParams }: SubmissionsPageP
     );
   }
 
-  const submissions = (submissionsData ?? []).map((row) =>
-    decryptRecordFields(row as Record<string, unknown>, ["result_link", "student_comment"]),
-  ) as LessonSubmission[];
+  const submissions = ((submissionsData ?? []) as LessonSubmission[]).map((row) =>
+    decryptRecordFields(row, ["result_link", "student_comment"]),
+  );
   const unresolvedLessonIds = collectUnresolvedLessonIds(
     submissions.map((item) => item.lesson_id),
   );
@@ -82,9 +82,9 @@ export default async function SubmissionsPage({ searchParams }: SubmissionsPageP
     messagesPromise,
     mediaPreviewPromise,
   ]);
-  const messages = (messagesResult.data ?? []).map((row) =>
-    decryptRecordFields(row as Record<string, unknown>, ["message"]),
-  ) as SubmissionMessage[];
+  const messages = ((messagesResult.data ?? []) as SubmissionMessage[]).map((row) =>
+    decryptRecordFields(row, ["message"]),
+  );
   const messagesBySubmission = new Map<string, SubmissionMessage[]>();
 
   for (const message of messages) {

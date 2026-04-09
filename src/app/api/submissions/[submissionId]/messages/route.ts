@@ -121,7 +121,7 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   return NextResponse.json({
-    items: (messagesResult.data ?? []).map((row) => decryptRecordFields(row as Record<string, unknown>, ["message"])),
+    items: (messagesResult.data ?? []).map((row) => decryptRecordFields(row, ["message"])),
     status:
       typeof submissionStatusResult.data?.status === "string"
         ? submissionStatusResult.data.status
@@ -261,7 +261,7 @@ export async function POST(request: Request, context: RouteContext) {
       admin.from("users").select("full_name, email").eq("id", row.user_id).maybeSingle(),
     ]);
     const student = studentResult.data
-      ? (decryptRecordFields(studentResult.data as Record<string, unknown>, [
+      ? (decryptRecordFields(studentResult.data as StudentRow, [
           "full_name",
           "email",
         ]) as StudentRow)
