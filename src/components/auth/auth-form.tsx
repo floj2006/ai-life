@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { trackClientEvent } from "@/lib/telemetry-client";
@@ -206,6 +206,14 @@ const extractVkUser = (value: unknown) => {
   };
 };
 
+const safeDecodeUriComponent = (value: string) => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+};
+
 const toReadableAuthError = (message: string, mode: Mode) => {
   const normalized = message.toLowerCase();
 
@@ -247,7 +255,57 @@ export function AuthForm() {
   const [message, setMessage] = useState("");
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [nowTs, setNowTs] = useState(Date.now());
+  const vkAutoCompleteRef = useRef(false);
   const modeFromQuery = searchParams.get("mode");
+  const vkAuthCode = searchParams.get("code");
+  const vkAuthDeviceId = searchParams.get("device_id") ?? searchParams.get("deviceId");
+  const vkAuthError = searchParams.get("error");
+  const vkAuthErrorDescription = searchParams.get("error_description");
+
+  const completeVkidLogin = useCallback(
+    async (code: string, deviceId: string, sdk?: VkidSdk) => {
+      const activeSdk = sdk ?? (await loadVkidSdk());
+      const tokenPayload = await activeSdk.Auth.exchangeCode(code, deviceId);
+      const accessToken = extractVkAccessToken(tokenPayload);
+      if (!accessToken) {
+        throw new Error("VK ID не вернул access token.");
+      }
+
+      const userPayload = await activeSdk.Auth.userInfo(accessToken);
+      const user = extractVkUser(userPayload);
+
+      const completeResponse = await fetch("/api/auth/vkid/complete", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          contactEmail: user?.email ?? null,
+          firstName: user?.firstName ?? null,
+          lastName: user?.lastName ?? null,
+          displayName: user?.displayName ?? null,
+        }),
+      });
+
+      const completeRaw = await completeResponse.text();
+      let completePayload: { loginUrl?: string; error?: string } = {};
+      if (completeRaw) {
+        try {
+          completePayload = JSON.parse(completeRaw) as { loginUrl?: string; error?: string };
+        } catch {
+          completePayload = {};
+        }
+      }
+
+      if (!completeResponse.ok || !completePayload.loginUrl) {
+        throw new Error(completePayload.error ?? "Не удалось завершить вход через VK ID.");
+      }
+
+      window.location.assign(completePayload.loginUrl);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (modeFromQuery !== "signin" && modeFromQuery !== "signup" && modeFromQuery !== "forgot") {
@@ -284,6 +342,52 @@ export function AuthForm() {
       setCooldownUntil(parsed);
     }
   }, []);
+
+  useEffect(() => {
+    if (mode === "forgot") {
+      return;
+    }
+
+    if (vkAuthError) {
+      setError(
+        toReadableAuthError(
+          vkAuthErrorDescription
+            ? `${vkAuthError}: ${safeDecodeUriComponent(vkAuthErrorDescription)}`
+            : vkAuthError,
+          mode,
+        ),
+      );
+      return;
+    }
+
+    if (!vkAuthCode || !vkAuthDeviceId || vkAutoCompleteRef.current) {
+      return;
+    }
+
+    vkAutoCompleteRef.current = true;
+    setIsLoading(true);
+    setError("");
+    setMessage("");
+
+    completeVkidLogin(vkAuthCode, vkAuthDeviceId)
+      .catch((authError) => {
+        setError(
+          authError instanceof Error
+            ? toReadableAuthError(authError.message, mode)
+            : "Не удалось завершить вход через VK ID.",
+        );
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [
+    completeVkidLogin,
+    mode,
+    vkAuthCode,
+    vkAuthDeviceId,
+    vkAuthError,
+    vkAuthErrorDescription,
+  ]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -459,47 +563,11 @@ export function AuthForm() {
         const loginPayload = await sdk.Auth.login();
         const codeData = extractVkCodePayload(loginPayload);
         if (!codeData) {
-          throw new Error("VK ID не вернул код авторизации.");
+          setMessage("Продолжите вход в окне VK ID. После возврата авторизация завершится автоматически.");
+          return;
         }
 
-        const tokenPayload = await sdk.Auth.exchangeCode(codeData.code, codeData.deviceId);
-        const accessToken = extractVkAccessToken(tokenPayload);
-        if (!accessToken) {
-          throw new Error("VK ID не вернул access token.");
-        }
-
-        const userPayload = await sdk.Auth.userInfo(accessToken);
-        const user = extractVkUser(userPayload);
-
-        const completeResponse = await fetch("/api/auth/vkid/complete", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            accessToken,
-            contactEmail: user?.email ?? null,
-            firstName: user?.firstName ?? null,
-            lastName: user?.lastName ?? null,
-            displayName: user?.displayName ?? null,
-          }),
-        });
-
-        const completeRaw = await completeResponse.text();
-        const completePayload = completeRaw
-          ? (JSON.parse(completeRaw) as { loginUrl?: string; error?: string })
-          : {};
-
-        if (!completeResponse.ok || !completePayload.loginUrl) {
-          throw new Error(completePayload.error ?? "Не удалось завершить вход через VK ID.");
-        }
-
-        trackClientEvent("auth_vk_redirected", {
-          mode,
-          provider: "vkid_magiclink",
-        });
-
-        window.location.assign(completePayload.loginUrl);
+        await completeVkidLogin(codeData.code, codeData.deviceId, sdk);
         return;
       }
 
