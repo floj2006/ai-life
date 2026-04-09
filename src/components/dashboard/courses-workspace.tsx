@@ -39,10 +39,7 @@ export function CoursesWorkspace({ lessons, submissions }: CoursesWorkspaceProps
             Здесь видны последние отправленные работы и текущие статусы проверки.
           </p>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2">
-          <Link href="/dashboard/courses" className="action-button secondary-button w-full">
-            Каталог уроков
-          </Link>
+        <div className="grid gap-2 sm:grid-cols-1">
           <Link href="/submissions?tab=active" className="action-button primary-button w-full">
             Мои задания
           </Link>
@@ -90,11 +87,7 @@ export function CoursesWorkspace({ lessons, submissions }: CoursesWorkspaceProps
                     >
                       Открыть урок
                     </Link>
-                  ) : (
-                    <Link href="/dashboard/courses" className="action-button secondary-button w-full">
-                      Открыть каталог
-                    </Link>
-                  )}
+                  ) : null}
                   <Link href="/submissions?tab=active" className="action-button primary-button w-full">
                     Перейти в задания
                   </Link>

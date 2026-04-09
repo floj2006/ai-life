@@ -53,7 +53,7 @@ export default async function DashboardCoursesPage() {
       <section className="surface surface-glow fade-up p-5 md:p-7">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-700">Каталог уроков</p>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-sky-700">Курсы</p>
             <h1 className="mt-1 text-3xl font-bold leading-tight md:text-4xl">Курсы вашего уровня</h1>
             <p className="small-text mt-2">
               Ваш тариф: <span className="font-semibold">{getTierLabel(profile.subscription_tier)}</span>

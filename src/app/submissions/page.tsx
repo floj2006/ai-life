@@ -13,7 +13,7 @@ import {
 import { cleanLessonTitle } from "@/lib/lesson-title";
 import { decryptRecordFields } from "@/lib/security/encryption";
 import { buildSubmissionMediaPreviewMap } from "@/lib/submission-media-preview";
-import { isSubmissionStatus, submissionStatusLabels } from "@/lib/submissions";
+import { isSubmissionStatus } from "@/lib/submissions";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type { LessonSubmission, SubmissionMessage } from "@/lib/types";
 
@@ -22,14 +22,53 @@ type LessonReferenceRow = {
   slug: string | null;
 };
 
+type SubmissionsTab = "active" | "in_review" | "needs_fix" | "accepted";
+
 type SubmissionsPageProps = {
   searchParams: Promise<{ tab?: string }>;
 };
 
+const parseTab = (value: string | undefined): SubmissionsTab => {
+  if (value === "in_review" || value === "needs_fix" || value === "accepted") {
+    return value;
+  }
+
+  if (value === "completed") {
+    return "accepted";
+  }
+
+  return "active";
+};
+
+const tabTitles: Record<SubmissionsTab, string> = {
+  active: "Активные",
+  in_review: "На проверке",
+  needs_fix: "Нужна доработка",
+  accepted: "Принятые",
+};
+
+const EmptyTasksIllustration = () => (
+  <svg viewBox="0 0 220 150" className="h-auto w-full max-w-[280px]" fill="none" aria-hidden>
+    <defs>
+      <linearGradient id="tasks-empty-bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stopColor="#DBEAFE" />
+        <stop offset="100%" stopColor="#CFFAFE" />
+      </linearGradient>
+    </defs>
+    <rect x="10" y="20" width="200" height="115" rx="18" fill="url(#tasks-empty-bg)" />
+    <rect x="34" y="44" width="152" height="16" rx="8" fill="#ffffff" fillOpacity="0.85" />
+    <rect x="34" y="68" width="128" height="12" rx="6" fill="#ffffff" fillOpacity="0.65" />
+    <rect x="34" y="86" width="112" height="12" rx="6" fill="#ffffff" fillOpacity="0.55" />
+    <circle cx="40" cy="14" r="10" fill="#38BDF8" fillOpacity="0.32" />
+    <circle cx="180" cy="12" r="6" fill="#0891B2" fillOpacity="0.25" />
+    <path d="M163 112l12 10 24-28" stroke="#16A34A" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
 export default async function SubmissionsPage({ searchParams }: SubmissionsPageProps) {
   noStore();
   const params = await searchParams;
-  const tab = params.tab === "completed" ? "completed" : "active";
+  const activeTab = parseTab(params.tab);
 
   const { user } = await requireUser();
   const admin = createAdminClient();
@@ -107,25 +146,48 @@ export default async function SubmissionsPage({ searchParams }: SubmissionsPageP
       approved: 0,
     },
   );
+
+  const tabCounters: Record<SubmissionsTab, number> = {
+    active: statusCounts.sent + statusCounts.in_review + statusCounts.needs_revision,
+    in_review: statusCounts.in_review,
+    needs_fix: statusCounts.needs_revision,
+    accepted: statusCounts.approved,
+  };
+
   const filteredSubmissions = submissions.filter((submission) => {
     const status = isSubmissionStatus(submission.status) ? submission.status : "sent";
-    return tab === "completed" ? status === "approved" : status !== "approved";
+
+    if (activeTab === "active") {
+      return status !== "approved";
+    }
+
+    if (activeTab === "in_review") {
+      return status === "in_review";
+    }
+
+    if (activeTab === "needs_fix") {
+      return status === "needs_revision";
+    }
+
+    return status === "approved";
   });
 
   return (
     <main className="container-shell with-mobile-nav flex flex-col gap-4 py-4 md:gap-6 md:py-8">
       {!isAdmin ? <SubmissionsSeenMarker /> : null}
-      <section className="surface p-5 md:p-8">
+
+      <section className="surface surface-glow p-5 md:p-8">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold leading-tight md:text-4xl">Мои задания</h1>
-            <p className="small-text mt-2">
-              Здесь собраны все отправки, ответы проверяющего и текущие статусы по урокам.
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">Рабочая зона ученика</p>
+            <h1 className="mt-1 text-3xl font-bold leading-tight md:text-4xl">Мои задания</h1>
+            <p className="small-text mt-2 max-w-2xl">
+              Здесь видно все отправки, текущий статус и последние ответы проверяющего.
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Link href="/dashboard/courses" className="action-button secondary-button">
-              К урокам
+              К курсам
             </Link>
             {isAdmin ? (
               <Link href="/admin" className="action-button primary-button">
@@ -135,54 +197,40 @@ export default async function SubmissionsPage({ searchParams }: SubmissionsPageP
           </div>
         </div>
 
-        {submissions.length > 0 ? (
-          <div className="mt-4 flex flex-wrap gap-2">
+        <nav className="mt-5 flex flex-wrap gap-2" aria-label="Фильтры по статусу заданий">
+          {(Object.keys(tabTitles) as SubmissionsTab[]).map((tabKey) => (
             <Link
-              href="/submissions?tab=active"
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                tab === "active"
-                  ? "bg-sky-600 text-white"
-                  : "bg-zinc-100 text-zinc-700"
+              key={tabKey}
+              href={tabKey === "active" ? "/submissions" : `/submissions?tab=${tabKey}`}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-semibold transition-all duration-200 ease-out ${
+                activeTab === tabKey
+                  ? "border-sky-600 bg-sky-600 text-white shadow-[0_10px_18px_rgba(14,116,144,0.26)]"
+                  : "border-sky-100 bg-white/85 text-slate-700 hover:border-sky-200 hover:bg-sky-50 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200 dark:hover:bg-slate-800"
               }`}
             >
-              Активные
+              <span>{tabTitles[tabKey]}</span>
+              <span className={activeTab === tabKey ? "text-white/90" : "text-slate-500 dark:text-slate-400"}>
+                ({tabCounters[tabKey]})
+              </span>
             </Link>
-            <Link
-              href="/submissions?tab=completed"
-              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
-                tab === "completed"
-                  ? "bg-sky-600 text-white"
-                  : "bg-zinc-100 text-zinc-700"
-              }`}
-            >
-              Принятые
-            </Link>
-            <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-semibold text-zinc-700">
-              Всего: {submissions.length}
-            </span>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">
-              {submissionStatusLabels.sent}: {statusCounts.sent}
-            </span>
-            <span className="rounded-full bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-700">
-              {submissionStatusLabels.in_review}: {statusCounts.in_review}
-            </span>
-            <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
-              {submissionStatusLabels.needs_revision}: {statusCounts.needs_revision}
-            </span>
-            <span className="rounded-full bg-sky-100 px-3 py-1 text-xs font-semibold text-sky-800">
-              {submissionStatusLabels.approved}: {statusCounts.approved}
-            </span>
-          </div>
-        ) : null}
+          ))}
+        </nav>
       </section>
 
       {filteredSubmissions.length === 0 ? (
-        <section className="surface p-6">
-          <p className="small-text">
-            {tab === "completed"
-              ? "Пока нет принятых заданий."
-              : "Пока нет активных заданий. Откройте урок и нажмите «Отправить задание»."}
-          </p>
+        <section className="surface p-6 md:p-10">
+          <div className="mx-auto flex max-w-[520px] flex-col items-center text-center">
+            <EmptyTasksIllustration />
+            <h2 className="mt-5 text-2xl font-semibold text-slate-900">Пока в этом разделе нет заданий</h2>
+            <p className="small-text mt-2">
+              {activeTab === "accepted"
+                ? "Как только проверяющий примет работу, она появится здесь."
+                : "Откройте урок и отправьте результат, чтобы задание появилось в этом списке."}
+            </p>
+            <Link href="/dashboard/courses" className="action-button primary-button mt-5 w-full sm:w-fit">
+              Перейти к курсам
+            </Link>
+          </div>
         </section>
       ) : (
         <section className="grid gap-4">
@@ -217,4 +265,3 @@ export default async function SubmissionsPage({ searchParams }: SubmissionsPageP
     </main>
   );
 }
-
