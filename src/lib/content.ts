@@ -33,7 +33,7 @@ type SyntxModelGuide = {
 
 type PromptExplainer = {
   summary: string;
-  whatToReplace: string[];
+  replacementTips: string[];
   whyItWorks: string[];
   commonMistakes: string[];
 };
@@ -57,6 +57,7 @@ const DEFAULT_VIDEO_BY_CATEGORY: Record<LessonCategory, string> = {
   video: SYNTX_AI_URL,
   text: SYNTX_AI_URL,
   business: SYNTX_AI_URL,
+  photosession: SYNTX_AI_URL,
 };
 
 export const lessonVideoOverrides: Record<LessonSlug, string> = {};
@@ -68,6 +69,11 @@ const HOMEWORK_CHECKLIST_BY_CATEGORY: Record<LessonCategory, string[]> = {
     "Кадр сразу читается и решает задачу урока.",
     "Свет, лицо и детали выглядят естественно, без артефактов.",
     "В комментарии коротко указано, что вы заменили в промпте.",
+  ],
+  photosession: [
+    "Сцена выглядит как реальная фотосессия, а не иллюстрация.",
+    "Свет, кожа и ткань выглядят естественно, без «пластика».",
+    "В комментарии указано, какие параметры съемки вы заменили.",
   ],
   video: [
     "У ролика сильный первый кадр и понятный финал.",
@@ -92,6 +98,11 @@ const HOMEWORK_COMMON_MISTAKES_BY_CATEGORY: Record<LessonCategory, string[]> = {
     "Смешаны несовместимые стили в одном промпте.",
     "Перед отправкой не выбран лучший кадр из нескольких вариантов.",
   ],
+  photosession: [
+    "Не указаны свет, объектив и параметры съемки.",
+    "Слишком много стилистики в одном промпте.",
+    "Нет уточнения по позе, выражению лица или фону.",
+  ],
   video: [
     "В один ролик пытаются уместить слишком много идей.",
     "Не указан формат, длительность или движение камеры.",
@@ -115,6 +126,11 @@ const SYNTX_MODEL_GUIDES: Record<LessonCategory, SyntxModelGuide> = {
     alternatives: ["Ideogram", "Recraft"],
     whenToUse: "Лучше всего подходит для фотореализма, света, фактуры и чистых визуалов.",
   },
+  photosession: {
+    primary: "FLUX Pro",
+    alternatives: ["Ideogram", "Recraft"],
+    whenToUse: "Лучше всего подходит для реалистичных фотосессий с точным светом и кожей.",
+  },
   video: {
     primary: "Kling",
     alternatives: ["Runway", "Pika"],
@@ -135,31 +151,38 @@ const SYNTX_MODEL_GUIDES: Record<LessonCategory, SyntxModelGuide> = {
 const PROMPT_EXPLAINERS: Record<LessonCategory, PromptExplainer> = {
   photo: {
     summary:
-      "Промпт для фото задает свет, стиль, композицию и реализм, поэтому результат получается чище и естественнее.",
-    whatToReplace: [
-      "{человек} или {герой} — кто в центре кадра.",
-      "{товар}, {сцена}, {фон} — что именно показываем и в каком контексте.",
-      "{палитра}, {настроение} — какая атмосфера нужна в кадре.",
-    ],
+      "Этот промпт объясняет нейросети, какое фото вам нужно: кто в кадре, какой свет и какая атмосфера.",
+    replacementTips: [],
     whyItWorks: [
       "Свет и оптика сразу задают качественный визуальный характер.",
       "Уточнение реализма помогает избежать пластиковых лиц и грязных текстур.",
       "Коммерческие ориентиры делают фото пригодным для профиля, карточки или рекламы.",
     ],
     commonMistakes: [
-      "Слишком общий запрос без света и композиции.",
-      "Слишком много разных стилей в одном промпте.",
-      "Нет ограничений на реализм, из-за чего лицо или товар плывут.",
+      "Слишком общий запрос без света, ракурса и фона.",
+      "Смешаны несовместимые стили в одном промпте.",
+      "Не указан главный объект, из-за чего кадр получается размытым.",
+    ],
+  },
+  photosession: {
+    summary:
+      "Этот промпт описывает полноценную фотосессию: кто в кадре, где снимаем и какой свет.",
+    replacementTips: [],
+    whyItWorks: [
+      "Оптика и свет сразу задают реализм и качество кожи.",
+      "Точные детали одежды и фона делают кадр цельным.",
+      "Ограничение по стилю помогает избежать визуального шума.",
+    ],
+    commonMistakes: [
+      "Нет уточнений про свет и локацию.",
+      "Слишком много стилей в одном кадре.",
+      "Не указана поза или эмоция модели.",
     ],
   },
   video: {
     summary:
-      "Промпт для видео фиксирует сюжет, движение камеры и формат, поэтому генерация становится стабильнее и понятнее.",
-    whatToReplace: [
-      "{герой}, {эксперт} — кто в центре ролика.",
-      "{продукт}, {сцена}, {тема} — что именно показываем и какую мысль доносим.",
-      "Первые секунды ролика — какой кадр должен зацепить зрителя сразу.",
-    ],
+      "Этот промпт помогает сделать короткий ролик: что происходит в кадре и какой эффект нужен.",
+    replacementTips: [],
     whyItWorks: [
       "Ограничение по длительности и сценам снижает хаос.",
       "Описание движения камеры делает ролик более живым и киношным.",
@@ -173,12 +196,8 @@ const PROMPT_EXPLAINERS: Record<LessonCategory, PromptExplainer> = {
   },
   text: {
     summary:
-      "Промпт для текста заранее задает структуру, поэтому AI пишет не простыню, а материал, который можно использовать сразу.",
-    whatToReplace: [
-      "{тема} — о чем текст.",
-      "{аудитория} — для кого он написан.",
-      "{продукт}, {контекст}, {цель} — деловая рамка задачи.",
-    ],
+      "Этот промпт говорит нейросети, какой текст нужен, кому он адресован и чего вы ждете в конце.",
+    replacementTips: [],
     whyItWorks: [
       "Хук, суть и CTA удерживают внимание и ведут к действию.",
       "Ограничение по объему убирает воду.",
@@ -192,12 +211,8 @@ const PROMPT_EXPLAINERS: Record<LessonCategory, PromptExplainer> = {
   },
   business: {
     summary:
-      "Промпт для бизнеса переводит идею в рабочий план: шаги, метрики, риски и следующий практический шаг.",
-    whatToReplace: [
-      "{ниша}, {продукт}, {услуга} — о каком бизнесе речь.",
-      "{цель} — измеримая цель в деньгах, лидах или заявках.",
-      "Контекст применения — где именно вы используете результат: воронка, оффер, созвон, тариф или запуск.",
-    ],
+      "Этот промпт помогает получить понятный план: что делаем, для кого и какой результат нужен.",
+    replacementTips: [],
     whyItWorks: [
       "Метрики и дедлайны делают ответ прикладным.",
       "Сценарий риска помогает не застрять после первой неудачи.",
@@ -263,6 +278,10 @@ const buildLessonInstruction = (category: LessonCategory) => {
     return "Откройте Syntx AI, вставьте промпт, подставьте свои данные, сделайте 2-3 варианта и отправьте лучший кадр на проверку.";
   }
 
+  if (category === "photosession") {
+    return "Откройте Syntx AI, вставьте промпт для фотосессии, замените ключевые параметры и отправьте лучший кадр на проверку.";
+  }
+
   if (category === "video") {
     return "Откройте Syntx AI, вставьте промпт, соберите 2-3 версии ролика и отправьте самый сильный вариант на проверку.";
   }
@@ -272,6 +291,229 @@ const buildLessonInstruction = (category: LessonCategory) => {
   }
 
   return "Откройте Syntx AI, вставьте промпт, адаптируйте текст под свою аудиторию и отправьте лучший вариант на проверку.";
+};
+
+const PROMPT_STRUCTURE_BY_CATEGORY: Record<LessonCategory, string[]> = {
+  photo: [
+    "Кто в кадре: {герой}.",
+    "Где снимаем: {локация} или {фон}.",
+    "Свет и настроение: мягкий, естественный, без резких теней.",
+    "Оптика и детализация: объектив, глубина резкости, фактура.",
+    "Итог: реалистичный кадр без «пластика».",
+  ],
+  photosession: [
+    "Кто в кадре: {герой}.",
+    "Локация съемки: {локация} или {фон}.",
+    "Свет: источник, мягкость, направление.",
+    "Оптика: объектив и диафрагма.",
+    "Итог: ощущение реальной фотосессии.",
+  ],
+  video: [
+    "Формат: вертикальный 9:16, длительность до 10 секунд.",
+    "Сюжет: {герой} делает {действие} или показывает {продукт}.",
+    "Хук: сильный первый кадр.",
+    "Свет и фон: чисто, без визуального шума.",
+    "Итог: понятный короткий ролик с одной идеей.",
+  ],
+  text: [
+    "Для кого: {аудитория}.",
+    "Тема: {тема}.",
+    "Структура: хук → суть → вывод → призыв.",
+    "Тон: простой, дружелюбный, без воды.",
+    "Итог: короткий текст, готовый к публикации.",
+  ],
+  business: [
+    "Про что задача: {продукт} или {услуга}.",
+    "Цель: {цель} в понятных цифрах.",
+    "Шаги: что делать по порядку.",
+    "Метрики: как понять, что работает.",
+    "Итог: план действий без лишней теории.",
+  ],
+};
+
+const getPromptStructure = (category: LessonCategory) => PROMPT_STRUCTURE_BY_CATEGORY[category];
+
+const describeToken = (token: string, category: LessonCategory) => {
+  const key = token.replace(/[{}]/g, "").trim().toLowerCase();
+
+  if (/(герой|модель|человек)/.test(key)) {
+    return "кто в кадре: пол, возраст, роль и внешний вид";
+  }
+  if (/эксперт/.test(key)) {
+    return "кто говорит: специалист и его роль";
+  }
+  if (/(локация|место)/.test(key)) {
+    return "где происходит съемка или действие";
+  }
+  if (/фон/.test(key)) {
+    return "какой фон и насколько он нейтральный";
+  }
+  if (/товар/.test(key)) {
+    return "какой товар показываем";
+  }
+  if (/продукт/.test(key)) {
+    return "какой продукт или предложение описываем";
+  }
+  if (/услуга/.test(key)) {
+    return "какая именно услуга и в чем ее польза";
+  }
+  if (/бренд/.test(key)) {
+    return "название бренда или проекта";
+  }
+  if (/аудитория/.test(key)) {
+    return "для кого текст или ролик: кто этот человек";
+  }
+  if (/ниша/.test(key)) {
+    return "сфера бизнеса или тематика";
+  }
+  if (/тема/.test(key)) {
+    return "о чем конкретно текст или ролик";
+  }
+  if (/кейс/.test(key)) {
+    return "какой результат или история";
+  }
+  if (/процесс/.test(key)) {
+    return "какое действие или шаги описываем";
+  }
+  if (/вопрос/.test(key)) {
+    return "какой вопрос слышит зритель";
+  }
+  if (/контекст/.test(key)) {
+    return "что уже произошло в диалоге";
+  }
+  if (/цель/.test(key)) {
+    return "какого результата хотите";
+  }
+  if (/палитра/.test(key)) {
+    return "какие основные цвета использовать";
+  }
+  if (/сфера/.test(key)) {
+    return "в какой профессиональной сфере";
+  }
+  if (/предмет/.test(key)) {
+    return "с чем взаимодействуют руки";
+  }
+  if (/действие/.test(key)) {
+    return category === "video" ? "что делает герой в кадре" : "что делает персонаж";
+  }
+
+  return "что именно нужно подставить";
+};
+
+const FALLBACK_EXAMPLES: Record<LessonCategory, string[]> = {
+  photo: [
+    "портрет с естественным светом",
+    "спокойная городская локация",
+    "мягкий пастельный фон",
+    "живой кадр без ретуши",
+  ],
+  photosession: [
+    "фотосессия в кафе у окна",
+    "мягкий свет от окна",
+    "стиль: минимализм и теплые тона",
+    "объектив 50 мм, мягкое боке",
+  ],
+  video: [
+    "короткий ролик про продукт",
+    "сильный хук в 1 секунду",
+    "чистый фон и плавная камера",
+    "действие в кадре без лишних сцен",
+  ],
+  text: [
+    "простое объяснение без воды",
+    "хук + 3 тезиса + призыв",
+    "тон: дружелюбный и уверенный",
+    "текст до 120 слов",
+  ],
+  business: [
+    "цель: 10 заявок за неделю",
+    "план из 3 понятных шагов",
+    "метрика успеха: конверсия 3%",
+    "следующий шаг: созвон",
+  ],
+};
+
+const toExampleValue = (token: string, category: LessonCategory, index: number) => {
+  const key = token.replace(/[{}]/g, "").trim().toLowerCase();
+
+  if (/(герой|модель|человек)/.test(key)) {
+    return "молодая женщина 28 лет, уверенная, в аккуратной одежде";
+  }
+  if (/эксперт/.test(key)) {
+    return "эксперт по фитнесу";
+  }
+  if (/(локация|место)/.test(key)) {
+    return "уютная кофейня с большими окнами";
+  }
+  if (/фон/.test(key)) {
+    return "светло-серый фон без деталей";
+  }
+  if (/товар/.test(key)) {
+    return "керамическая кружка";
+  }
+  if (/продукт/.test(key)) {
+    return "онлайн-курс по английскому для начинающих";
+  }
+  if (/услуга/.test(key)) {
+    return "дизайн логотипа для малого бизнеса";
+  }
+  if (/бренд/.test(key)) {
+    return "CoffeeMood";
+  }
+  if (/аудитория/.test(key)) {
+    return "начинающие предприниматели";
+  }
+  if (/ниша/.test(key)) {
+    return "салоны красоты";
+  }
+  if (/тема/.test(key)) {
+    return "как быстро оформить профиль";
+  }
+  if (/кейс/.test(key)) {
+    return "рост заявок через сторис";
+  }
+  if (/процесс/.test(key)) {
+    return "запуск рекламной кампании";
+  }
+  if (/вопрос/.test(key)) {
+    return "Сколько стоит услуга?";
+  }
+  if (/контекст/.test(key)) {
+    return "клиент спросил о сроках и цене";
+  }
+  if (/цель/.test(key)) {
+    return "договориться о созвоне на этой неделе";
+  }
+  if (/палитра/.test(key)) {
+    return "бежевый, темно-зеленый, белый";
+  }
+  if (/сфера/.test(key)) {
+    return "маркетинг";
+  }
+  if (/предмет/.test(key)) {
+    return "ноутбук";
+  }
+  if (/действие/.test(key)) {
+    return category === "video" ? "показывает до/после" : "работает за ноутбуком";
+  }
+
+  const fallback = FALLBACK_EXAMPLES[category];
+  return fallback[index % fallback.length];
+};
+
+const buildPromptExample = (
+  prompt: string,
+  category: LessonCategory,
+  placeholders: string[],
+) => {
+  if (placeholders.length === 0) {
+    return prompt;
+  }
+
+  return placeholders.reduce((acc, token, index) => {
+    const value = toExampleValue(token, category, index);
+    return acc.replaceAll(token, value);
+  }, prompt);
 };
 
 const buildLessonSteps = (
@@ -285,6 +527,15 @@ const buildLessonSteps = (
     return [
       `Откройте Syntx AI и выберите модель ${model}.`,
       `Вставьте промпт и замените ${replaceHint}.`,
+      `Сделайте 3 варианта и сравните их по ${reviewFocus}.`,
+      "Сохраните лучший кадр и отправьте его на проверку.",
+    ];
+  }
+
+  if (category === "photosession") {
+    return [
+      `Откройте Syntx AI и выберите модель ${model}.`,
+      `Вставьте промпт фотосессии и замените ${replaceHint}.`,
       `Сделайте 3 варианта и сравните их по ${reviewFocus}.`,
       "Сохраните лучший кадр и отправьте его на проверку.",
     ];
@@ -343,7 +594,37 @@ export const getHomeworkChecklist = (category: LessonCategory) =>
 export const getHomeworkCommonMistakes = (category: LessonCategory) =>
   HOMEWORK_COMMON_MISTAKES_BY_CATEGORY[category];
 
-export const getPromptExplainer = (category: LessonCategory) => PROMPT_EXPLAINERS[category];
+const buildReplacementTips = (placeholders: string[], category: LessonCategory) => {
+  if (placeholders.length === 0) {
+    return PROMPT_EXPLAINERS[category].replacementTips.length > 0
+      ? PROMPT_EXPLAINERS[category].replacementTips
+      : [
+          "Уточните ключевые данные задачи: кто, что, где и какой результат нужен.",
+          "Добавьте конкретику: длительность, формат или стиль.",
+          "Убедитесь, что в тексте есть понятная цель.",
+        ];
+  }
+
+  return placeholders.map((token) => `${token} — ${describeToken(token, category)}.`);
+};
+
+export const getPromptExplainer = (
+  category: LessonCategory,
+  placeholders: string[] = [],
+) => ({
+  ...PROMPT_EXPLAINERS[category],
+  replacementTips: buildReplacementTips(placeholders, category),
+});
+
+export const getPromptReplacementItems = (
+  placeholders: string[],
+  category: LessonCategory,
+) =>
+  placeholders.map((token, index) => ({
+    token,
+    description: describeToken(token, category),
+    example: toExampleValue(token, category, index),
+  }));
 
 export const buildBeginnerPromptTemplate = ({
   goal,
@@ -363,17 +644,24 @@ export const buildBeginnerPromptTemplate = ({
   }
 
   const guide = getSyntxModelGuide(category);
+  const structureLines = getPromptStructure(category);
+  const examplePrompt = buildPromptExample(prompt, category, placeholders);
 
   return [
     `${BEGINNER_PROMPT_HEADER} ${normalizeInlineText(goal)}`,
     `Рекомендуемая модель в Syntx AI: ${guide.primary}.`,
     "Перед запуском замените значения в фигурных скобках на свои данные.",
     placeholdersLine,
+    "Структура промпта:",
+    ...structureLines.map((line) => `- ${line}`),
     "",
     "Промпт:",
     prompt,
     "",
     `Что должно получиться: ${normalizeInlineText(expectedResult)}`,
+    "",
+    "Пример заполнения:",
+    examplePrompt,
   ].join("\n");
 };
 
@@ -469,13 +757,14 @@ const validateLessonCatalog = (lessons: Lesson[]) => {
 
   const categoryCounts = countBy(lessons.map((lesson) => lesson.category));
   if (
-    categoryCounts.photo !== 15 ||
+    categoryCounts.photo !== 9 ||
+    categoryCounts.photosession !== 6 ||
     categoryCounts.video !== 15 ||
     categoryCounts.text !== 10 ||
     categoryCounts.business !== 10
   ) {
     throw new Error(
-      `Unexpected category split: photo=${categoryCounts.photo}, video=${categoryCounts.video}, text=${categoryCounts.text}, business=${categoryCounts.business}`,
+      `Unexpected category split: photo=${categoryCounts.photo}, photosession=${categoryCounts.photosession}, video=${categoryCounts.video}, text=${categoryCounts.text}, business=${categoryCounts.business}`,
     );
   }
 };

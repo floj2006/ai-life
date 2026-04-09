@@ -9,6 +9,7 @@ const CATEGORY_LABELS: Record<LessonCategory, string> = {
   video: "Видео",
   text: "Текст",
   business: "Бизнес",
+  photosession: "Нейрофотосессия",
 };
 
 export function LessonCategoryChip({ category }: LessonCategoryChipProps) {
@@ -39,6 +40,13 @@ export function LessonCategoryChip({ category }: LessonCategoryChipProps) {
             <path d="M3 8h18v11H3z" />
             <path d="M8 8V6h8v2" />
             <path d="M3 13h18" />
+          </svg>
+        ) : null}
+        {category === "photosession" ? (
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M4 7h4l2-2h4l2 2h4v12H4z" />
+            <circle cx="12" cy="13" r="4" />
+            <path d="m19 4 .6 1.2 1.4.2-1 .9.2 1.4-1.2-.6-1.2.6.2-1.4-1-.9 1.4-.2z" />
           </svg>
         ) : null}
       </span>

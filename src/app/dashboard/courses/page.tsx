@@ -6,6 +6,7 @@ import { CoursesWorkspace } from "@/components/dashboard/courses-workspace";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 import { isAdminEmail } from "@/lib/admin-access";
 import { getDashboardData } from "@/lib/dashboard-data";
+import { decryptRecordFields } from "@/lib/security/encryption";
 import { isSubmissionStatus } from "@/lib/submissions";
 import { getTierLabel } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -37,6 +38,9 @@ export default async function DashboardCoursesPage() {
     .limit(12);
 
   const submissions = ((submissionsData ?? []) as SubmissionRow[])
+    .map((item) =>
+      decryptRecordFields(item as Record<string, unknown>, ["student_comment", "result_link"]),
+    )
     .filter((item) => isSubmissionStatus(item.status))
     .map((item) => ({
       ...item,

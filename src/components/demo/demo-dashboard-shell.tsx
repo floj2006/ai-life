@@ -12,6 +12,7 @@ const categoryLabel: Record<DemoDashboardData["results"][number]["category"], st
   video: "Видео",
   text: "Тексты",
   business: "Бизнес",
+  photosession: "Нейрофотосессия",
 };
 
 const sessionToClock = (seconds: number) => {

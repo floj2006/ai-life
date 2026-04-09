@@ -5,6 +5,7 @@ import { enforceRateLimit } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
 import { validateLessonOrSubmissionId } from "@/lib/submission-validation";
 import { logAdminAuditEvent } from "@/lib/telemetry";
+import { encryptOptional } from "@/lib/security/encryption";
 import type { SubscriptionTier } from "@/lib/types";
 
 type RouteContext = {
@@ -105,8 +106,8 @@ export async function PATCH(request: Request, context: RouteContext) {
   const withTier = await admin.from("users").upsert(
     {
       id: userId,
-      email: authUser.email ?? null,
-      full_name: fullName,
+      email: encryptOptional(authUser.email ?? null),
+      full_name: encryptOptional(fullName),
       is_pro: grantMax,
       subscription_tier: payload.tier,
     },
@@ -150,8 +151,8 @@ export async function PATCH(request: Request, context: RouteContext) {
   const legacy = await admin.from("users").upsert(
     {
       id: userId,
-      email: authUser.email ?? null,
-      full_name: fullName,
+      email: encryptOptional(authUser.email ?? null),
+      full_name: encryptOptional(fullName),
       is_pro: grantMax,
     },
     { onConflict: "id", ignoreDuplicates: false },

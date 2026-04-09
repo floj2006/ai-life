@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ensureUserRowExists } from "@/lib/supabase/ensure-user-row";
 import { createClient } from "@/lib/supabase/server";
 import { enforceRateLimit } from "@/lib/rate-limit";
+import { decryptRecordFields, encryptOptional } from "@/lib/security/encryption";
 import {
   MAX_SUBMISSION_MESSAGE_LENGTH,
   validateLessonOrSubmissionId,
@@ -120,7 +121,7 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 
   return NextResponse.json({
-    items: messagesResult.data ?? [],
+    items: (messagesResult.data ?? []).map((row) => decryptRecordFields(row as Record<string, unknown>, ["message"])),
     status:
       typeof submissionStatusResult.data?.status === "string"
         ? submissionStatusResult.data.status
@@ -242,7 +243,7 @@ export async function POST(request: Request, context: RouteContext) {
       submission_id: submissionId,
       author_id: user.id,
       author_role: "admin",
-      message,
+      message: encryptOptional(message),
     });
 
     if (insertError) {
@@ -259,7 +260,12 @@ export async function POST(request: Request, context: RouteContext) {
       resolveLessonTitle(admin, row.lesson_id),
       admin.from("users").select("full_name, email").eq("id", row.user_id).maybeSingle(),
     ]);
-    const student = studentResult.data as StudentRow | null;
+    const student = studentResult.data
+      ? (decryptRecordFields(studentResult.data as Record<string, unknown>, [
+          "full_name",
+          "email",
+        ]) as StudentRow)
+      : null;
 
     void sendSubmissionMessageToStudent({
       studentEmail: student?.email ?? null,
@@ -295,7 +301,7 @@ export async function POST(request: Request, context: RouteContext) {
     submission_id: submissionId,
     author_id: user.id,
     author_role: "student",
-    message,
+    message: encryptOptional(message),
   });
 
   if (error) {
@@ -319,5 +325,6 @@ export async function POST(request: Request, context: RouteContext) {
 
   return NextResponse.json({ ok: true });
 }
+
 
 

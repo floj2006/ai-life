@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
@@ -62,7 +62,7 @@ const initialFilters: Record<ReviewSectionKey, string> = {
 const formatDateTime = (value: string) => {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
-    return "—";
+    return "-";
   }
 
   return date.toLocaleString("ru-RU", {
@@ -202,8 +202,7 @@ export function ReviewBoard({ items }: ReviewBoardProps) {
             </div>
 
             <p className="small-text mt-2">
-              Статусы секции:{" "}
-              {section.statuses.map((status) => submissionStatusLabels[status]).join(" / ")}
+              Статусы секции: {section.statuses.map((status) => submissionStatusLabels[status]).join(" / ")}
             </p>
 
             {isOpen ? (
@@ -330,9 +329,7 @@ export function ReviewBoard({ items }: ReviewBoardProps) {
                                 Переписка
                               </p>
                               {submission.messages.length === 0 ? (
-                                <p className="small-text mt-2">
-                                  По этому заданию еще нет сообщений.
-                                </p>
+                                <p className="small-text mt-2">По этому заданию еще нет сообщений.</p>
                               ) : (
                                 <div className="mt-2 grid gap-2">
                                   {submission.messages.map((item) => (

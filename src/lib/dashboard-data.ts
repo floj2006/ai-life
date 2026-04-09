@@ -7,6 +7,7 @@ import {
 } from "@/lib/lesson-reference";
 import { canAccessLessonTier, normalizeSubscriptionTier } from "@/lib/subscription";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { decryptOptional, encryptOptional } from "@/lib/security/encryption";
 import type { Lesson, LessonWithProgress, UserProfile } from "@/lib/types";
 import { unstable_cache, unstable_noStore as noStore } from "next/cache";
 
@@ -95,7 +96,7 @@ const ensureProfileBootstrap = async (
   const profileBootstrapResult = await admin.from("users").upsert(
     {
       id: user.id,
-      email: user.email ?? null,
+      email: encryptOptional(user.email ?? null),
       is_pro: false,
       subscription_tier: "newbie",
     },
@@ -109,7 +110,7 @@ const ensureProfileBootstrap = async (
     await admin.from("users").upsert(
       {
         id: user.id,
-        email: user.email ?? null,
+        email: encryptOptional(user.email ?? null),
         is_pro: false,
       },
       { onConflict: "id", ignoreDuplicates: true },
@@ -227,8 +228,11 @@ export const getDashboardData = async () => {
     rawProfile !== null
       ? {
           id: rawProfile.id,
-          full_name: rawProfile.full_name ?? user.user_metadata?.full_name ?? null,
-          email: rawProfile.email ?? user.email ?? null,
+          full_name:
+            decryptOptional(rawProfile.full_name) ??
+            user.user_metadata?.full_name ??
+            null,
+          email: decryptOptional(rawProfile.email) ?? user.email ?? null,
           is_pro: tier === "max",
           subscription_tier: tier,
         }

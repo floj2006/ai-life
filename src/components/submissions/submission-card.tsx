@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { RealtimeChannel, RealtimePostgresChangesPayload } from "@supabase/supabase-js";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { SubmissionMessageForm } from "@/components/submissions/submission-message-form";
 import { type SubmissionMediaPreview } from "@/lib/submission-media-preview";
 import { isExternalResultLink, parseStorageResultLink } from "@/lib/submission-media";
@@ -62,33 +62,6 @@ const getLastAdminMessage = (messages: SubmissionMessage[]) => {
 
 const sortMessagesByCreatedAt = (left: SubmissionMessage, right: SubmissionMessage) => {
   return new Date(left.created_at).getTime() - new Date(right.created_at).getTime();
-};
-
-const toMessageFromRealtimePayload = (
-  payload: RealtimePostgresChangesPayload<Record<string, unknown>>,
-): SubmissionMessage | null => {
-  const row = (payload.new ?? {}) as Record<string, unknown>;
-
-  const id = typeof row.id === "string" ? row.id : null;
-  const submissionId = typeof row.submission_id === "string" ? row.submission_id : null;
-  const authorId = typeof row.author_id === "string" ? row.author_id : null;
-  const authorRoleRaw = row.author_role;
-  const authorRole = authorRoleRaw === "admin" || authorRoleRaw === "student" ? authorRoleRaw : null;
-  const message = typeof row.message === "string" ? row.message : null;
-  const createdAt = typeof row.created_at === "string" ? row.created_at : null;
-
-  if (!id || !submissionId || !authorId || !authorRole || !message || !createdAt) {
-    return null;
-  }
-
-  return {
-    id,
-    submission_id: submissionId,
-    author_id: authorId,
-    author_role: authorRole,
-    message,
-    created_at: createdAt,
-  };
 };
 
 const hasStorageMedia = (resultLink: string | null) => {
@@ -162,19 +135,8 @@ export function SubmissionCard({
           table: "submission_messages",
           filter: `submission_id=eq.${submissionId}`,
         },
-        (payload) => {
-          const nextMessage = toMessageFromRealtimePayload(payload);
-          if (!nextMessage) {
-            return;
-          }
-
-          setLiveThread((prev) => {
-            if (prev.some((item) => item.id === nextMessage.id)) {
-              return prev;
-            }
-
-            return [...prev, nextMessage].sort(sortMessagesByCreatedAt);
-          });
+        () => {
+          void syncMessages();
         },
       )
       .on(

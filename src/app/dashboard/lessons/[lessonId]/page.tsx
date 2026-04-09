@@ -11,6 +11,7 @@ import {
   getHomeworkChecklist,
   getHomeworkCommonMistakes,
   getPromptExplainer,
+  getPromptReplacementItems,
   getSyntxModelGuide,
 } from "@/lib/content";
 import { getDashboardData } from "@/lib/dashboard-data";
@@ -46,8 +47,9 @@ export default async function LessonPage({ params }: LessonPageProps) {
   }
 
   const modelGuide = getSyntxModelGuide(lesson.category);
-  const promptExplainer = getPromptExplainer(lesson.category);
   const promptPlaceholders = extractPromptPlaceholders(lesson.prompt_template);
+  const promptExplainer = getPromptExplainer(lesson.category, promptPlaceholders);
+  const promptReplacementItems = getPromptReplacementItems(promptPlaceholders, lesson.category);
   const homeworkChecklist = getHomeworkChecklist(lesson.category);
   const homeworkMistakes = getHomeworkCommonMistakes(lesson.category);
   const primaryToolUrl = lesson.ai_tool_url;
@@ -261,11 +263,30 @@ export default async function LessonPage({ params }: LessonPageProps) {
             <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
               Что заменить под себя
             </p>
-            <ul className="mt-2 grid gap-2 text-sm leading-relaxed text-[var(--ink)]">
-              {promptPlaceholders.length > 0
-                ? promptPlaceholders.map((item) => <li key={item}>- {item}</li>)
-                : promptExplainer.whatToReplace.map((item) => <li key={item}>- {item}</li>)}
-            </ul>
+            {promptReplacementItems.length > 0 ? (
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                {promptReplacementItems.map((item) => (
+                  <div
+                    key={item.token}
+                    className="rounded-2xl bg-white px-4 py-3 text-sm ring-1 ring-sky-100"
+                  >
+                    <p className="text-xs font-bold uppercase tracking-wide text-sky-700">
+                      {item.token}
+                    </p>
+                    <p className="mt-1 text-[var(--ink)]">{item.description}</p>
+                    <p className="mt-2 text-xs font-semibold text-sky-700">
+                      Пример: {item.example}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <ul className="mt-2 grid gap-2 text-sm leading-relaxed text-[var(--ink)]">
+                {promptExplainer.replacementTips.map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <details className="mt-3 rounded-[24px] border border-[var(--line)] bg-white p-4">
@@ -279,6 +300,17 @@ export default async function LessonPage({ params }: LessonPageProps) {
               </p>
               <ul className="mt-2 grid gap-2 text-sm leading-relaxed text-[var(--ink)]">
                 {promptExplainer.whyItWorks.map((item) => (
+                  <li key={item}>- {item}</li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="mt-3 rounded-2xl bg-amber-50 px-4 py-4 ring-1 ring-amber-100">
+              <p className="text-xs font-bold uppercase tracking-wide text-amber-700">
+                Частые ошибки
+              </p>
+              <ul className="mt-2 grid gap-2 text-sm leading-relaxed text-[var(--ink)]">
+                {promptExplainer.commonMistakes.map((item) => (
                   <li key={item}>- {item}</li>
                 ))}
               </ul>

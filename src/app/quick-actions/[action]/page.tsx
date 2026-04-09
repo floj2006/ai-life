@@ -33,7 +33,8 @@ export default async function QuickActionDetailPage(props: QuickActionPageProps)
   };
   const category = categoryByAction[data.slug];
   const guide = getSyntxModelGuide(category);
-  const promptExplainer = getPromptExplainer(category);
+  const promptPlaceholders = data.promptTemplate.match(/\{[^{}]+\}/g) ?? [];
+  const promptExplainer = getPromptExplainer(category, promptPlaceholders);
 
   return (
     <main className="container-shell with-mobile-nav flex flex-col gap-4 py-4 md:py-8">
@@ -58,7 +59,7 @@ export default async function QuickActionDetailPage(props: QuickActionPageProps)
         <div className="mt-3 rounded-2xl bg-cyan-50 p-4">
           <p className="text-xs font-bold uppercase tracking-wide text-sky-700">Что заменить перед запуском</p>
           <ul className="mt-2 grid gap-1 text-sm leading-relaxed">
-            {promptExplainer.whatToReplace.map((item) => (
+            {promptExplainer.replacementTips.map((item) => (
               <li key={item}>• {item}</li>
             ))}
           </ul>

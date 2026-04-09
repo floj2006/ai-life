@@ -1,7 +1,7 @@
-export type DemoResult = {
+﻿export type DemoResult = {
   id: string;
   title: string;
-  category: "photo" | "video" | "text" | "business";
+  category: "photo" | "video" | "text" | "business" | "photosession";
   preview: string;
   qualityScore: number;
   updatedAt: string;
@@ -29,19 +29,19 @@ export const demoDashboardData: DemoDashboardData = {
   results: [
     {
       id: "r-photo",
-      title: "Портрет для профиля",
-      category: "photo",
+      title: "Нейрофотосессия: деловой портрет",
+      category: "photosession",
       preview:
-        "Портрет в мягком дневном свете, естественные цвета, аккуратная кожа, чистый нейтральный фон.",
+        "Мягкий дневной свет, реалистичная кожа, аккуратный костюм и естественная поза без пластика.",
       qualityScore: 89,
       updatedAt: "обновлено 12 мин назад",
     },
     {
       id: "r-video",
-      title: "Сценарий ролика на 15 секунд",
+      title: "Сценарий ролика на 10 секунд",
       category: "video",
       preview:
-        "Хук в первые 2 секунды, 3 динамичные сцены и ясный финальный призыв написать в личные сообщения.",
+        "Сильный хук в первые 2 секунды, 2 короткие сцены и четкий финальный призыв.",
       qualityScore: 84,
       updatedAt: "обновлено 28 мин назад",
     },
@@ -50,7 +50,7 @@ export const demoDashboardData: DemoDashboardData = {
       title: "Текст оффера для лендинга",
       category: "text",
       preview:
-        "Ясная выгода в первой строке, конкретные результаты и призыв к действию без воды.",
+        "Понятная выгода, 3 аргумента и короткий CTA без воды и сложных формулировок.",
       qualityScore: 92,
       updatedAt: "обновлено 41 мин назад",
     },

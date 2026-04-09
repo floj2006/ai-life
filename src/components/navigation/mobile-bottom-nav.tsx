@@ -10,10 +10,19 @@ type MobileBottomNavProps = {
 };
 
 type NavItem = {
-  key: "courses" | "submissions" | "billing" | "dashboard" | "review" | "admin" | "dialogs";
+  key:
+    | "courses"
+    | "submissions"
+    | "billing"
+    | "dashboard"
+    | "review"
+    | "admin"
+    | "dialogs"
+    | "settings";
   href: string;
   label: string;
   startsWith: string[];
+  matchHash?: string;
   icon: ReactNode;
 };
 
@@ -65,9 +74,10 @@ const userItems: NavItem[] = [
 const adminItems: NavItem[] = [
   {
     key: "dashboard",
-    href: "/dashboard",
-    label: "Кабинет",
-    startsWith: ["/dashboard", "/dashboard/courses"],
+    href: "/admin#dashboard",
+    label: "Панель",
+    startsWith: ["/admin"],
+    matchHash: "#dashboard",
     icon: (
       <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
         <rect x="3" y="3" width="8" height="8" rx="2" />
@@ -79,9 +89,10 @@ const adminItems: NavItem[] = [
   },
   {
     key: "review",
-    href: "/review",
+    href: "/admin#review-queue",
     label: "Проверка",
-    startsWith: ["/review"],
+    startsWith: ["/admin"],
+    matchHash: "#review-queue",
     icon: (
       <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
         <path d="m9 11 3 3L22 4" />
@@ -91,9 +102,10 @@ const adminItems: NavItem[] = [
   },
   {
     key: "admin",
-    href: "/admin",
-    label: "Тарифы",
+    href: "/admin#users",
+    label: "Пользователи",
     startsWith: ["/admin"],
+    matchHash: "#users",
     icon: (
       <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
         <circle cx="12" cy="12" r="3" />
@@ -103,18 +115,41 @@ const adminItems: NavItem[] = [
   },
   {
     key: "dialogs",
-    href: "/submissions",
-    label: "Диалоги",
-    startsWith: ["/submissions"],
+    href: "/admin#pricing",
+    label: "Тарифы",
+    startsWith: ["/admin"],
+    matchHash: "#pricing",
     icon: (
       <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+        <rect x="2.5" y="5" width="19" height="14" rx="2.2" />
+        <path d="M2.5 10.5h19" />
+        <path d="M8 15h2.5" />
+      </svg>
+    ),
+  },
+  {
+    key: "settings",
+    href: "/admin#settings",
+    label: "Настройки",
+    startsWith: ["/admin"],
+    matchHash: "#settings",
+    icon: (
+      <svg viewBox="0 0 24 24" className={iconClass} fill="none" stroke="currentColor" strokeWidth="2.2">
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.6V21a2 2 0 1 1-4 0v-.2a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.6-1H3a2 2 0 1 1 0-4h.2a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.6V3a2 2 0 1 1 4 0v.2a1.7 1.7 0 0 0 1 1.6h.1a1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.6 1H21a2 2 0 1 1 0 4h-.2a1.7 1.7 0 0 0-1.6 1z" />
       </svg>
     ),
   },
 ];
 
-const isActiveItem = (pathname: string, item: NavItem) => {
+const isActiveItem = (pathname: string, hash: string, item: NavItem) => {
+  if (item.matchHash && pathname === "/admin") {
+    if (!hash || hash === "#") {
+      return item.matchHash === "#dashboard";
+    }
+    return item.matchHash === hash;
+  }
+
   if (pathname === item.href) {
     return true;
   }
@@ -134,6 +169,23 @@ export function MobileBottomNav({ isAdmin }: MobileBottomNavProps) {
   const pathname = usePathname();
   const items = isAdmin ? adminItems : userItems;
   const [hasSubmissionUpdates, setHasSubmissionUpdates] = useState(false);
+  const [currentHash, setCurrentHash] = useState("");
+
+  useEffect(() => {
+    if (!isAdmin) {
+      return;
+    }
+
+    const syncHash = () => {
+      setCurrentHash(window.location.hash || "#dashboard");
+    };
+
+    syncHash();
+    window.addEventListener("hashchange", syncHash);
+    return () => {
+      window.removeEventListener("hashchange", syncHash);
+    };
+  }, [isAdmin]);
 
   useEffect(() => {
     if (isAdmin) {
@@ -199,7 +251,7 @@ export function MobileBottomNav({ isAdmin }: MobileBottomNavProps) {
       <div className="mx-auto w-full max-w-xl rounded-2xl border border-[var(--line)] bg-white/96 px-2 py-2 shadow-[0_16px_38px_rgba(8,47,73,0.2)] backdrop-blur">
         <ul className={`grid gap-1 ${isAdmin ? "grid-cols-5" : "grid-cols-3"}`}>
           {items.map((item) => {
-            const active = isActiveItem(pathname, item);
+            const active = isActiveItem(pathname, currentHash, item);
             const showSubmissionDot =
               !isAdmin && item.key === "submissions" && hasSubmissionUpdates;
 

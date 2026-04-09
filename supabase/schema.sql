@@ -187,7 +187,7 @@ set category = case
   else 'text'
 end
 where category is null
-   or category not in ('photo', 'video', 'text', 'business');
+   or category not in ('photo', 'video', 'text', 'business', 'photosession');
 
 update public.lessons
 set goal = coalesce(nullif(goal, ''), short_description)
@@ -223,7 +223,7 @@ alter table public.lessons alter column expected_result set not null;
 alter table public.lessons drop constraint if exists lessons_category_check;
 alter table public.lessons
   add constraint lessons_category_check
-  check (category in ('photo', 'video', 'text', 'business'));
+  check (category in ('photo', 'video', 'text', 'business', 'photosession'));
 
 create or replace function public.handle_new_user()
 returns trigger

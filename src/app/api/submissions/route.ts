@@ -20,6 +20,7 @@ import {
   validateResultLink,
   validateTextInput,
 } from "@/lib/submission-validation";
+import { decryptRecordFields, decryptOptional, encryptOptional } from "@/lib/security/encryption";
 import {
   canAccessLessonTier,
   getTierLabel,
@@ -300,7 +301,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ items: data ?? [] });
+    const items = (data ?? []).map((row) =>
+      decryptRecordFields(row as Record<string, unknown>, ["result_link", "student_comment"]),
+    );
+    return NextResponse.json({ items });
   }
 
   const { data, error } = await supabase
@@ -313,7 +317,10 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  return NextResponse.json({ items: data ?? [] });
+  const items = (data ?? []).map((row) =>
+    decryptRecordFields(row as Record<string, unknown>, ["result_link", "student_comment"]),
+  );
+  return NextResponse.json({ items });
 }
 
 export async function POST(request: Request) {
@@ -421,6 +428,7 @@ export async function POST(request: Request) {
   }
 
   const existingSubmission = existingSubmissionResult.data as ExistingSubmissionRow | null;
+  const existingResultLink = decryptOptional(existingSubmission?.result_link ?? null);
   const isNewSubmission = !existingSubmission;
   const submittedAtIso = new Date().toISOString();
   const demoLesson = getDemoLessonById(lessonId);
@@ -446,6 +454,12 @@ export async function POST(request: Request) {
     userAccess?.is_pro ?? authIsPro,
   );
   const studentProfile = studentProfileResult.data as StudentProfileRow | null;
+  const decryptedStudentProfile = studentProfile
+    ? (decryptRecordFields(studentProfile as Record<string, unknown>, [
+        "full_name",
+        "email",
+      ]) as StudentProfileRow)
+    : null;
 
   const requiredTier = resolveLessonAccessTier({
     isPremium: lesson.is_premium,
@@ -541,8 +555,8 @@ export async function POST(request: Request) {
         user_id: user.id,
         lesson_id: resolvedLessonId,
         status: "sent",
-        result_link: resultLink || existingSubmission?.result_link || null,
-        student_comment: comment,
+        result_link: encryptOptional(resultLink || existingResultLink || null),
+        student_comment: encryptOptional(comment),
         updated_at: submittedAtIso,
       },
       { onConflict: "user_id,lesson_id", ignoreDuplicates: false },
@@ -561,7 +575,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const previousStorage = parseStorageResultLink(existingSubmission?.result_link);
+  const previousStorage = parseStorageResultLink(existingResultLink);
   const nextStorage = parseStorageResultLink(resultLink);
 
   if (
@@ -577,7 +591,7 @@ export async function POST(request: Request) {
       submission_id: submission.id,
       author_id: user.id,
       author_role: "student",
-      message: comment,
+      message: encryptOptional(comment),
     });
 
     if (messageError) {
@@ -588,8 +602,8 @@ export async function POST(request: Request) {
   if (isNewSubmission) {
     void sendNewSubmissionToAdmins({
       lessonTitle: demoLesson?.title ?? lesson.title,
-      studentName: studentProfile?.full_name ?? user.user_metadata?.full_name ?? null,
-      studentEmail: user.email ?? studentProfile?.email ?? null,
+      studentName: decryptedStudentProfile?.full_name ?? user.user_metadata?.full_name ?? null,
+      studentEmail: user.email ?? decryptedStudentProfile?.email ?? null,
       submittedAtIso,
     }).catch((error) => {
       console.error("[submissions] Failed to send new-submission notification.", error);

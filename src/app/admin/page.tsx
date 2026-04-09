@@ -3,17 +3,28 @@ import type { ReactNode } from "react";
 import { TierUpdateForm } from "@/components/admin/tier-update-form";
 import { LogoutButton } from "@/components/dashboard/logout-button";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
+import { ReviewBoard, type ReviewSubmissionItem } from "@/components/review/review-board";
 import { requireAdminUser } from "@/lib/admin-access";
+import { getDirectPaymentContactText, getDirectPaymentRequisites } from "@/lib/direct-payment";
 import {
   buildDbLessonReferenceMap,
   collectUnresolvedLessonIds,
   resolveDemoLessonFromReference,
 } from "@/lib/lesson-reference";
 import { cleanLessonTitle } from "@/lib/lesson-title";
+import { plans } from "@/lib/pricing";
+import { buildSubmissionMediaPreviewMap } from "@/lib/submission-media-preview";
 import { isSubmissionStatus, submissionStatusLabels } from "@/lib/submissions";
 import { getTierLabel, normalizeSubscriptionTier } from "@/lib/subscription";
+import { decryptRecordFields } from "@/lib/security/encryption";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { SubmissionStatus, SubscriptionTier } from "@/lib/types";
+import type {
+  Lesson,
+  LessonSubmission,
+  SubmissionMessage,
+  SubmissionStatus,
+  SubscriptionTier,
+} from "@/lib/types";
 
 type AdminUserRow = {
   id: string;
@@ -29,6 +40,8 @@ type SubmissionRow = {
   user_id: string;
   lesson_id: string;
   status: string;
+  result_link: string | null;
+  student_comment: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -56,15 +69,12 @@ type SidebarItem = {
   icon: ReactNode;
 };
 
-type QueueItem = {
+type RecentMessageItem = {
   id: string;
-  studentName: string;
-  studentEmail: string;
   lessonTitle: string;
-  status: SubmissionStatus;
-  urgencyLabel: string;
-  urgencyClassName: string;
-  updatedAt: string;
+  authorRole: "student" | "admin";
+  message: string;
+  createdAt: string;
 };
 
 const auditActionLabels: Record<string, string> = {
@@ -106,38 +116,6 @@ const formatDateTime = (value: string | null) => {
     hour: "2-digit",
     minute: "2-digit",
   });
-};
-
-const getHoursSince = (value: string) => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    return 0;
-  }
-
-  return Math.max(0, (Date.now() - date.getTime()) / 3_600_000);
-};
-
-const getUrgencyMeta = (status: SubmissionStatus, updatedAt: string) => {
-  const hours = getHoursSince(updatedAt);
-
-  if ((status === "sent" && hours >= 18) || hours >= 48) {
-    return {
-      label: "Срочно",
-      className: "border-rose-200 bg-rose-50 text-rose-700",
-    };
-  }
-
-  if ((status === "in_review" && hours >= 12) || (status === "needs_revision" && hours >= 24)) {
-    return {
-      label: "Повышенный",
-      className: "border-amber-200 bg-amber-50 text-amber-700",
-    };
-  }
-
-  return {
-    label: "Стандарт",
-    className: "border-slate-200 bg-slate-50 text-slate-700",
-  };
 };
 
 const normalizeTierFromMetadata = (value: unknown): SubscriptionTier => {
@@ -330,9 +308,9 @@ export default async function AdminPage() {
       .limit(500),
     admin
       .from("lesson_submissions")
-      .select("id, user_id, lesson_id, status, created_at, updated_at")
+      .select("id, user_id, lesson_id, status, result_link, student_comment, created_at, updated_at")
       .order("updated_at", { ascending: false })
-      .limit(800),
+      .limit(1200),
     admin
       .from("admin_audit_logs")
       .select("id, actor_email, action, metadata, created_at")
@@ -421,42 +399,119 @@ export default async function AdminPage() {
   }
 
   const authRows = (authUsersResult.data?.users ?? []).map(mapAuthUserToRow);
-  const users = usersTableMissing
-    ? authRows
-    : mergeUsers((usersResult.data ?? []) as AdminUserRow[], authRows);
+  const decryptedUsers = usersTableMissing
+    ? []
+    : ((usersResult.data ?? []) as AdminUserRow[]).map((row) =>
+        decryptRecordFields(row as Record<string, unknown>, ["full_name", "email"]),
+      );
+  const users = usersTableMissing ? authRows : mergeUsers(decryptedUsers, authRows);
 
   const submissionsRaw = submissionsTableMissing
     ? []
-    : ((submissionsResult.data ?? []) as SubmissionRow[]);
+    : ((submissionsResult.data ?? []) as SubmissionRow[]).map((row) =>
+        decryptRecordFields(row as Record<string, unknown>, ["result_link", "student_comment"]),
+      );
 
-  const submissions = submissionsRaw
+  const submissions: LessonSubmission[] = submissionsRaw
     .filter((submission) => isSubmissionStatus(submission.status))
     .map((submission) => ({
-      ...submission,
+      id: submission.id,
+      user_id: submission.user_id,
+      lesson_id: submission.lesson_id,
       status: submission.status as SubmissionStatus,
+      result_link: submission.result_link,
+      student_comment: submission.student_comment ?? "",
+      created_at: submission.created_at,
+      updated_at: submission.updated_at,
     }));
 
-  const userMap = new Map(users.map((row) => [row.id, row]));
-
+  const submissionIds = submissions.map((submission) => submission.id);
   const unresolvedLessonIds = collectUnresolvedLessonIds(submissions.map((submission) => submission.lesson_id));
-  let lessonReferenceMap = new Map();
 
-  if (unresolvedLessonIds.length > 0) {
-    const lessonReferenceResult = await admin
-      .from("lessons")
-      .select("id, slug")
-      .in("id", unresolvedLessonIds);
+  let lessonReferenceMap = new Map<string, Lesson>();
+  let messages: SubmissionMessage[] = [];
+  let mediaPreviewMap = new Map<string, { url: string; kind: "image" | "video" }>();
 
-    if (!lessonReferenceResult.error) {
-      lessonReferenceMap = buildDbLessonReferenceMap(
-        (lessonReferenceResult.data ?? []) as LessonReferenceRow[],
-      );
+  if (submissions.length > 0) {
+    const messagesPromise =
+      submissionIds.length > 0 && !messagesTableMissing
+        ? admin
+            .from("submission_messages")
+            .select("id, submission_id, author_id, author_role, message, created_at")
+            .in("submission_id", submissionIds)
+            .order("created_at", { ascending: true })
+        : Promise.resolve({ data: [] as SubmissionMessage[], error: null });
+
+    const lessonReferencePromise =
+      unresolvedLessonIds.length > 0
+        ? admin.from("lessons").select("id, slug").in("id", unresolvedLessonIds)
+        : Promise.resolve({ data: [] as LessonReferenceRow[], error: null });
+
+    const [messagesResult, lessonReferenceResult, previewResult] = await Promise.all([
+      messagesPromise,
+      lessonReferencePromise,
+      buildSubmissionMediaPreviewMap(submissions),
+    ]);
+
+    if (messagesResult.error && !messagesTableMissing) {
+      return renderFatal(`Не удалось загрузить переписку по заданиям: ${messagesResult.error.message}`);
     }
+
+    const lessonsTableMissing = isMissingTableError(lessonReferenceResult.error?.message, "lessons");
+    if (lessonReferenceResult.error && !lessonsTableMissing) {
+      return renderFatal(`Не удалось загрузить уроки: ${lessonReferenceResult.error.message}`);
+    }
+
+    if (lessonsTableMissing) {
+      warnings.push("Таблица public.lessons не найдена: названия уроков взяты из встроенного списка.");
+    }
+
+    messages = (messagesResult.data ?? []).map((row) =>
+      decryptRecordFields(row as Record<string, unknown>, ["message"]),
+    ) as SubmissionMessage[];
+    lessonReferenceMap = buildDbLessonReferenceMap(
+      (lessonReferenceResult.data ?? []) as LessonReferenceRow[],
+    );
+    mediaPreviewMap = previewResult;
   }
+
+  const userMap = new Map(users.map((row) => [row.id, row]));
+  const messagesBySubmission = new Map<string, SubmissionMessage[]>();
+
+  for (const message of messages) {
+    const list = messagesBySubmission.get(message.submission_id) ?? [];
+    list.push(message);
+    messagesBySubmission.set(message.submission_id, list);
+  }
+
+  const reviewItems: ReviewSubmissionItem[] = submissions
+    .map((submission) => {
+      const lesson = resolveDemoLessonFromReference(submission.lesson_id, lessonReferenceMap);
+      const student = userMap.get(submission.user_id);
+
+      return {
+        id: submission.id,
+        userId: submission.user_id,
+        lessonId: submission.lesson_id,
+        lessonTitle: cleanLessonTitle(lesson?.title ?? "Урок"),
+        studentName: student?.full_name ?? null,
+        studentEmail: student?.email ?? null,
+        status: submission.status,
+        resultLink: submission.result_link,
+        studentComment: submission.student_comment ?? "",
+        createdAt: submission.created_at,
+        updatedAt: submission.updated_at,
+        messages: messagesBySubmission.get(submission.id) ?? [],
+        mediaPreview: mediaPreviewMap.get(submission.id) ?? null,
+      };
+    })
+    .sort((left, right) => new Date(right.updatedAt).getTime() - new Date(left.updatedAt).getTime());
 
   const tasksPendingReview = submissions.filter((item) => item.status !== "approved").length;
   const needsRevisionCount = submissions.filter((item) => item.status === "needs_revision").length;
   const completedTasksCount = submissions.filter((item) => item.status === "approved").length;
+  const sentCount = submissions.filter((item) => item.status === "sent").length;
+  const inReviewCount = submissions.filter((item) => item.status === "in_review").length;
 
   const analyticsUsers = analyticsTableMissing
     ? []
@@ -487,28 +542,24 @@ export default async function AdminPage() {
   const messagesCount24h = messagesTableMissing ? 0 : messagesCountResult.count ?? 0;
   const errorsAndFlagsCount = errorCount24h + needsRevisionCount;
 
-  const queueItems: QueueItem[] = submissions
-    .filter((item) => item.status !== "approved")
-    .sort((left, right) => new Date(right.updated_at).getTime() - new Date(left.updated_at).getTime())
-    .slice(0, 10)
-    .map((item) => {
-      const lesson = resolveDemoLessonFromReference(item.lesson_id, lessonReferenceMap);
-      const student = userMap.get(item.user_id);
-      const urgency = getUrgencyMeta(item.status, item.updated_at);
+  const reviewItemById = new Map(reviewItems.map((item) => [item.id, item]));
+  const recentMessages: RecentMessageItem[] = messages
+    .slice()
+    .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
+    .slice(0, 8)
+    .map((message) => ({
+      id: message.id,
+      lessonTitle: reviewItemById.get(message.submission_id)?.lessonTitle ?? "Урок",
+      authorRole: message.author_role,
+      message: message.message,
+      createdAt: message.created_at,
+    }));
 
-      return {
-        id: item.id,
-        studentName: student?.full_name || "Ученик",
-        studentEmail: student?.email || "без email",
-        lessonTitle: cleanLessonTitle(lesson?.title ?? "Урок"),
-        status: item.status,
-        urgencyLabel: urgency.label,
-        urgencyClassName: urgency.className,
-        updatedAt: item.updated_at,
-      };
-    });
-
-  const auditLogs = auditTableMissing ? [] : ((auditLogsResult.data ?? []) as AdminAuditLogRow[]);
+  const auditLogs = auditTableMissing
+    ? []
+    : ((auditLogsResult.data ?? []) as AdminAuditLogRow[]).map((row) =>
+        decryptRecordFields(row as Record<string, unknown>, ["actor_email"]),
+      );
   const adminFullName =
     typeof user.user_metadata?.full_name === "string" && user.user_metadata.full_name.trim().length > 0
       ? user.user_metadata.full_name
@@ -526,6 +577,11 @@ export default async function AdminPage() {
     },
     { newbie: 0, start: 0, max: 0 },
   );
+  const startPlan = plans.find((plan) => plan.id === "start");
+  const maxPlan = plans.find((plan) => plan.id === "max");
+  const startRequisites = getDirectPaymentRequisites("start");
+  const maxRequisites = getDirectPaymentRequisites("max");
+  const paymentContact = getDirectPaymentContactText();
 
   return (
     <main className="with-mobile-nav min-h-screen bg-[#f5f7fb]">
@@ -535,7 +591,7 @@ export default async function AdminPage() {
             <div className="sticky top-6 flex min-h-[calc(100vh-48px)] flex-col rounded-xl border border-slate-200 bg-white p-4 shadow-[0_1px_2px_rgba(15,23,42,0.08)]">
               <div className="mb-4 border-b border-slate-200 pb-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">AI Easy Life</p>
-                <p className="mt-2 text-lg font-semibold text-slate-900">Консоль администратора</p>
+                <p className="mt-2 text-lg font-semibold text-slate-900">Единая админ-панель</p>
               </div>
 
               <nav className="space-y-1.5" aria-label="Навигация администратора">
@@ -562,7 +618,10 @@ export default async function AdminPage() {
           </aside>
 
           <section className="min-w-0 space-y-5">
-            <header className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.08)] md:p-6">
+            <header
+              id="dashboard"
+              className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.08)] md:p-6"
+            >
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Панель</p>
@@ -570,7 +629,8 @@ export default async function AdminPage() {
                     Здравствуйте, {adminFullName}
                   </h1>
                   <p className="mt-2 text-sm text-slate-600">
-                    Оперативная панель по пользователям, проверке и активности платформы.
+                    Все ключевые действия администратора доступны здесь: проверка, ответы ученикам,
+                    управление тарифами, аналитика и настройки.
                   </p>
                 </div>
 
@@ -596,7 +656,7 @@ export default async function AdminPage() {
               ) : null}
             </header>
 
-            <section id="dashboard" className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <MetricCard
                 label="Заданий на проверке"
                 value={tasksPendingReview}
@@ -635,42 +695,23 @@ export default async function AdminPage() {
                   id="review-queue"
                   className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.08)] md:p-6"
                 >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h2 className="text-xl font-semibold text-slate-900">Очередь проверки</h2>
-                    <Link
-                      href="/review"
-                      className="inline-flex h-10 items-center justify-center rounded-lg bg-sky-600 px-4 text-sm font-semibold text-white transition hover:bg-sky-700"
-                    >
-                      Открыть очередь
-                    </Link>
-                  </div>
+                  <h2 className="text-xl font-semibold text-slate-900">Очередь проверки</h2>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Полный цикл проверки на одной странице: медиа результата, комментарий ученика,
+                    смена статуса и чат без переходов между разделами.
+                  </p>
 
-                  {queueItems.length === 0 ? (
-                    <p className="mt-3 text-sm text-slate-600">Открытых заданий пока нет.</p>
+                  {submissionsTableMissing ? (
+                    <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                      Таблица <code>public.lesson_submissions</code> не найдена. Очередь проверки будет доступна
+                      после применения SQL-схемы.
+                    </div>
+                  ) : reviewItems.length === 0 ? (
+                    <p className="mt-4 text-sm text-slate-600">Открытых заданий пока нет.</p>
                   ) : (
-                    <ul className="mt-4 divide-y divide-slate-100 rounded-lg border border-slate-200">
-                      {queueItems.map((item) => (
-                        <li key={item.id} className="p-4">
-                          <div className="flex flex-wrap items-start justify-between gap-3">
-                            <div className="min-w-0">
-                              <p className="text-sm font-semibold text-slate-900">{item.lessonTitle}</p>
-                              <p className="mt-1 text-sm text-slate-600">
-                                {item.studentName} • {item.studentEmail}
-                              </p>
-                            </div>
-                            <div className="flex flex-wrap items-center gap-2">
-                              <span className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-700">
-                                {submissionStatusLabels[item.status]}
-                              </span>
-                              <span className={`rounded-md border px-2 py-1 text-xs font-medium ${item.urgencyClassName}`}>
-                                {item.urgencyLabel}
-                              </span>
-                            </div>
-                          </div>
-                          <p className="mt-2 text-xs text-slate-500">Обновлено: {formatDateTime(item.updatedAt)}</p>
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="mt-4">
+                      <ReviewBoard items={reviewItems} />
+                    </div>
                   )}
                 </section>
 
@@ -758,33 +799,34 @@ export default async function AdminPage() {
                   id="quick-actions"
                   className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.08)]"
                 >
-                  <h2 className="text-lg font-semibold text-slate-900">Быстрые операции</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">Быстрые действия</h2>
+                  <p className="mt-2 text-sm text-slate-600">Навигация внутри текущей страницы без переходов.</p>
                   <div className="mt-4 grid gap-2.5">
-                    <Link
-                      href="/review"
+                    <a
+                      href="#review-queue"
                       className="inline-flex h-10 items-center justify-center rounded-lg bg-sky-600 px-4 text-sm font-semibold text-white transition hover:bg-sky-700"
                     >
-                      Открыть очередь проверки
-                    </Link>
-                    <Link
-                      href="/submissions?tab=active"
+                      Перейти к проверке
+                    </a>
+                    <a
+                      href="#users"
                       className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
-                      Открыть задания
-                    </Link>
-                    <Link
-                      href="/billing"
+                      Управление тарифами
+                    </a>
+                    <a
+                      href="#messages"
                       className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
-                      Тарифы и планы
-                    </Link>
-                    <Link
-                      href="/setup"
+                      Последние сообщения
+                    </a>
+                    <a
+                      href="#settings"
                       className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
-                      Настройки платформы
-                    </Link>
-                    <LogoutButton tone="danger" className="w-full" />
+                      Проверка настроек
+                    </a>
+                    <LogoutButton tone="danger" className="w-full lg:hidden" />
                   </div>
                 </section>
 
@@ -792,26 +834,22 @@ export default async function AdminPage() {
                   id="tasks"
                   className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.08)]"
                 >
-                  <h2 className="text-lg font-semibold text-slate-900">Задания</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">Статусы заданий</h2>
                   <div className="mt-4 space-y-2">
                     <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                      <span className="text-sm text-slate-600">Новых</span>
-                      <span className="text-sm font-semibold text-slate-900">
-                        {submissions.filter((item) => item.status === "sent").length}
-                      </span>
+                      <span className="text-sm text-slate-600">{submissionStatusLabels.sent}</span>
+                      <span className="text-sm font-semibold text-slate-900">{sentCount}</span>
                     </div>
                     <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                      <span className="text-sm text-slate-600">На проверке</span>
-                      <span className="text-sm font-semibold text-slate-900">
-                        {submissions.filter((item) => item.status === "in_review").length}
-                      </span>
+                      <span className="text-sm text-slate-600">{submissionStatusLabels.in_review}</span>
+                      <span className="text-sm font-semibold text-slate-900">{inReviewCount}</span>
                     </div>
                     <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                      <span className="text-sm text-slate-600">Нужна доработка</span>
+                      <span className="text-sm text-slate-600">{submissionStatusLabels.needs_revision}</span>
                       <span className="text-sm font-semibold text-slate-900">{needsRevisionCount}</span>
                     </div>
                     <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-                      <span className="text-sm text-slate-600">Принято</span>
+                      <span className="text-sm text-slate-600">{submissionStatusLabels.approved}</span>
                       <span className="text-sm font-semibold text-slate-900">{completedTasksCount}</span>
                     </div>
                   </div>
@@ -822,9 +860,7 @@ export default async function AdminPage() {
                   className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.08)]"
                 >
                   <h2 className="text-lg font-semibold text-slate-900">Тарифы и планы</h2>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Распределение пользователей по уровням доступа.
-                  </p>
+                  <p className="mt-2 text-sm text-slate-600">Распределение пользователей и действующие реквизиты.</p>
                   <div className="mt-4 grid gap-2">
                     <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                       <span className="text-sm text-slate-600">Новичок</span>
@@ -839,61 +875,116 @@ export default async function AdminPage() {
                       <span className="text-sm font-semibold text-slate-900">{usersByTier.max}</span>
                     </div>
                   </div>
-                  <div className="mt-3 grid gap-2">
-                    <Link
-                      href="/billing"
-                      className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Открыть страницу оплаты
-                    </Link>
-                    <Link
-                      href="/admin#users"
-                      className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Выдать тариф пользователю
-                    </Link>
+
+                  <div className="mt-4 space-y-3">
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {startPlan?.title ?? "Старт"} • {startPlan?.priceLabel ?? ""}
+                      </p>
+                      <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-700">
+                        {startRequisites || "Реквизиты тарифа «Старт» не заполнены."}
+                      </pre>
+                    </div>
+
+                    <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                        {maxPlan?.title ?? "Макс"} • {maxPlan?.priceLabel ?? ""}
+                      </p>
+                      <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-700">
+                        {maxRequisites || "Реквизиты тарифа «Макс» не заполнены."}
+                      </pre>
+                    </div>
                   </div>
+
+                  {paymentContact ? (
+                    <p className="mt-3 text-xs text-slate-600">Куда отправляют подтверждение оплаты: {paymentContact}</p>
+                  ) : null}
                 </section>
 
                 <section
                   id="messages"
                   className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.08)]"
                 >
-                  <h2 className="text-lg font-semibold text-slate-900">Сообщения</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">Сообщения по заданиям</h2>
                   <p className="mt-2 text-sm text-slate-600">
                     Новых сообщений за 24 часа: <span className="font-semibold text-slate-900">{messagesCount24h}</span>
                   </p>
-                  <div className="mt-3">
-                    <Link
-                      href="/submissions?tab=active"
-                      className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Открыть переписку
-                    </Link>
-                  </div>
+
+                  {recentMessages.length === 0 ? (
+                    <p className="mt-3 text-sm text-slate-600">Пока нет новых сообщений.</p>
+                  ) : (
+                    <ul className="mt-3 space-y-2">
+                      {recentMessages.map((message) => (
+                        <li key={message.id} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                            {message.authorRole === "admin" ? "Ответ админа" : "Сообщение ученика"}
+                          </p>
+                          <p className="mt-1 text-sm font-semibold text-slate-900">{message.lessonTitle}</p>
+                          <p className="mt-1 line-clamp-2 text-sm text-slate-600">{message.message}</p>
+                          <p className="mt-1 text-xs text-slate-500">{formatDateTime(message.createdAt)}</p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <a
+                    href="#review-queue"
+                    className="mt-3 inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Открыть карточки переписки
+                  </a>
                 </section>
 
                 <section
                   id="settings"
                   className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.08)]"
                 >
-                  <h2 className="text-lg font-semibold text-slate-900">Настройки</h2>
+                  <h2 className="text-lg font-semibold text-slate-900">Настройки и диагностика</h2>
                   <p className="mt-2 text-sm text-slate-600">
-                    Быстрый доступ к системным настройкам и запуску технической подготовки.
+                    Контроль схемы базы данных и быстрый чек перед релизом.
                   </p>
-                  <div className="mt-3 grid gap-2">
-                    <Link
-                      href="/setup"
-                      className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Открыть мастер настройки
-                    </Link>
-                    <Link
-                      href="/review"
-                      className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                    >
-                      Перейти к проверке заданий
-                    </Link>
+
+                  <ul className="mt-3 space-y-2 text-sm">
+                    <li className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span>users</span>
+                      <span className={usersTableMissing ? "text-amber-700" : "text-emerald-700"}>
+                        {usersTableMissing ? "не найдена" : "готово"}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span>lesson_submissions</span>
+                      <span className={submissionsTableMissing ? "text-amber-700" : "text-emerald-700"}>
+                        {submissionsTableMissing ? "не найдена" : "готово"}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span>submission_messages</span>
+                      <span className={messagesTableMissing ? "text-amber-700" : "text-emerald-700"}>
+                        {messagesTableMissing ? "не найдена" : "готово"}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span>admin_audit_logs</span>
+                      <span className={auditTableMissing ? "text-amber-700" : "text-emerald-700"}>
+                        {auditTableMissing ? "не найдена" : "готово"}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span>analytics_events</span>
+                      <span className={analyticsTableMissing ? "text-amber-700" : "text-emerald-700"}>
+                        {analyticsTableMissing ? "не найдена" : "готово"}
+                      </span>
+                    </li>
+                  </ul>
+
+                  <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Если таблицы не найдены</p>
+                    <p className="mt-1 text-xs text-slate-600">
+                      Примените SQL из <code>supabase/schema.sql</code> и затем выполните:
+                    </p>
+                    <pre className="mt-2 overflow-x-auto rounded-md bg-white p-2 text-xs text-slate-700">
+{`NOTIFY pgrst, 'reload schema';`}
+                    </pre>
                   </div>
                 </section>
               </div>

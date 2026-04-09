@@ -1,4 +1,4 @@
-﻿export type LessonCategory = "photo" | "video" | "text" | "business";
+﻿export type LessonCategory = "photo" | "video" | "text" | "business" | "photosession";
 
 export type SubscriptionTier = "newbie" | "start" | "max";
 
@@ -79,5 +79,6 @@ export type LessonSubmission = {
   created_at: string;
   updated_at: string;
 };
+
 
 

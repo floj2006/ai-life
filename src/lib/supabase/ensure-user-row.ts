@@ -1,4 +1,5 @@
-п»їimport "server-only";
+import "server-only";
+import { encryptOptional } from "@/lib/security/encryption";
 
 type AuthLikeUser = {
   id: string;
@@ -67,21 +68,21 @@ export const ensureUserRowExists = async (
   const payloads: Array<Record<string, unknown>> = [
     {
       id: user.id,
-      email: user.email ?? null,
-      full_name: fullName,
+      email: encryptOptional(user.email ?? null),
+      full_name: encryptOptional(fullName),
       is_pro: isPro,
       subscription_tier: tier,
     },
     {
       id: user.id,
-      email: user.email ?? null,
-      full_name: fullName,
+      email: encryptOptional(user.email ?? null),
+      full_name: encryptOptional(fullName),
       is_pro: isPro,
     },
     {
       id: user.id,
-      email: user.email ?? null,
-      full_name: fullName,
+      email: encryptOptional(user.email ?? null),
+      full_name: encryptOptional(fullName),
     },
     {
       id: user.id,
@@ -117,7 +118,6 @@ export const ensureUserRowExists = async (
 
   return (
     lastErrorMessage ??
-    "РќРµ СѓРґР°Р»РѕСЃСЊ СЃРёРЅС…СЂРѕРЅРёР·РёСЂРѕРІР°С‚СЊ РїСЂРѕС„РёР»СЊ РїРѕР»СЊР·РѕРІР°С‚РµР»СЏ РІ С‚Р°Р±Р»РёС†Рµ users."
+    "Не удалось синхронизировать профиль пользователя в таблице users."
   );
 };
-

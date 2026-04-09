@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { encryptOptional } from "@/lib/security/encryption";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -109,13 +110,13 @@ export const trackAnalyticsEvent = async ({
 }: AnalyticsEventInput) => {
   await safeInsert("analytics_events", {
     event_name: cleanText(eventName, 120),
-    route_path: cleanText(routePath, 300),
+    route_path: encryptOptional(cleanText(routePath, 300)),
     user_id: userId ?? null,
-    user_email: cleanText(userEmail, 320),
+    user_email: encryptOptional(cleanText(userEmail, 320)),
     metadata: sanitizeMetadata(metadata),
-    client_ip: getClientIp(request),
-    user_agent: getUserAgent(request),
-    referrer: getReferrer(request),
+    client_ip: encryptOptional(getClientIp(request)),
+    user_agent: encryptOptional(getUserAgent(request)),
+    referrer: encryptOptional(getReferrer(request)),
   });
 };
 
@@ -131,14 +132,14 @@ export const trackErrorEvent = async ({
 }: ErrorEventInput) => {
   await safeInsert("app_error_events", {
     source,
-    message: cleanText(message, MAX_TEXT_LENGTH),
-    stack: cleanText(stack, MAX_STACK_LENGTH),
-    route_path: cleanText(routePath, 300),
+    message: encryptOptional(cleanText(message, MAX_TEXT_LENGTH)),
+    stack: encryptOptional(cleanText(stack, MAX_STACK_LENGTH)),
+    route_path: encryptOptional(cleanText(routePath, 300)),
     user_id: userId ?? null,
-    user_email: cleanText(userEmail, 320),
+    user_email: encryptOptional(cleanText(userEmail, 320)),
     metadata: sanitizeMetadata(metadata),
-    client_ip: getClientIp(request),
-    user_agent: getUserAgent(request),
+    client_ip: encryptOptional(getClientIp(request)),
+    user_agent: encryptOptional(getUserAgent(request)),
   });
 };
 
@@ -152,7 +153,7 @@ export const logAdminAuditEvent = async ({
 }: AdminAuditLogInput) => {
   await safeInsert("admin_audit_logs", {
     actor_user_id: actorUserId ?? null,
-    actor_email: cleanText(actorEmail, 320),
+    actor_email: encryptOptional(cleanText(actorEmail, 320)),
     action: cleanText(action, 120),
     target_user_id: targetUserId ?? null,
     target_submission_id: targetSubmissionId ?? null,

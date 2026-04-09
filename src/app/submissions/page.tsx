@@ -11,6 +11,7 @@ import {
   resolveDemoLessonFromReference,
 } from "@/lib/lesson-reference";
 import { cleanLessonTitle } from "@/lib/lesson-title";
+import { decryptRecordFields } from "@/lib/security/encryption";
 import { buildSubmissionMediaPreviewMap } from "@/lib/submission-media-preview";
 import { isSubmissionStatus, submissionStatusLabels } from "@/lib/submissions";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -49,7 +50,9 @@ export default async function SubmissionsPage({ searchParams }: SubmissionsPageP
     );
   }
 
-  const submissions = (submissionsData ?? []) as LessonSubmission[];
+  const submissions = (submissionsData ?? []).map((row) =>
+    decryptRecordFields(row as Record<string, unknown>, ["result_link", "student_comment"]),
+  ) as LessonSubmission[];
   const unresolvedLessonIds = collectUnresolvedLessonIds(
     submissions.map((item) => item.lesson_id),
   );
@@ -79,7 +82,9 @@ export default async function SubmissionsPage({ searchParams }: SubmissionsPageP
     messagesPromise,
     mediaPreviewPromise,
   ]);
-  const messages = (messagesResult.data ?? []) as SubmissionMessage[];
+  const messages = (messagesResult.data ?? []).map((row) =>
+    decryptRecordFields(row as Record<string, unknown>, ["message"]),
+  ) as SubmissionMessage[];
   const messagesBySubmission = new Map<string, SubmissionMessage[]>();
 
   for (const message of messages) {

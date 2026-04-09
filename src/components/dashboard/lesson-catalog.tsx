@@ -14,6 +14,7 @@ type LessonCatalogProps = {
 const FILTERS: { value: LessonCategory | "all"; label: string }[] = [
   { value: "all", label: "Все" },
   { value: "photo", label: "Фото" },
+  { value: "photosession", label: "Нейрофотосессии" },
   { value: "video", label: "Видео" },
   { value: "text", label: "Тексты" },
   { value: "business", label: "Бизнес" },

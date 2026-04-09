@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { ensureUserRowExists } from "@/lib/supabase/ensure-user-row";
 import { createClient } from "@/lib/supabase/server";
 import { logAdminAuditEvent } from "@/lib/telemetry";
+import { decryptRecordFields, encryptOptional } from "@/lib/security/encryption";
 import {
   MAX_SUBMISSION_MESSAGE_LENGTH,
   validateLessonOrSubmissionId,
@@ -235,7 +236,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       submission_id: submissionId,
       author_id: user.id,
       author_role: "admin",
-      message,
+      message: encryptOptional(message),
     });
 
     if (messageError) {
@@ -268,7 +269,12 @@ export async function PATCH(request: Request, context: RouteContext) {
       .eq("id", currentSubmission.user_id)
       .maybeSingle();
 
-    const student = studentResult.data as StudentRow | null;
+    const student = studentResult.data
+      ? (decryptRecordFields(studentResult.data as Record<string, unknown>, [
+          "full_name",
+          "email",
+        ]) as StudentRow)
+      : null;
 
     void sendSubmissionStatusToStudent({
       studentEmail: student?.email ?? null,
