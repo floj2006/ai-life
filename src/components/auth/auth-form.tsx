@@ -271,6 +271,9 @@ export function AuthForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = useMemo(() => createClient(), []);
+  const vkidAppIdRaw = process.env.NEXT_PUBLIC_VKID_APP_ID?.trim();
+  const vkidAppId = vkidAppIdRaw ? Number(vkidAppIdRaw) : Number.NaN;
+  const hasVkidSdkFlow = Number.isFinite(vkidAppId) && vkidAppId > 0;
 
   const [mode, setMode] = useState<Mode>("signin");
   const [fullName, setFullName] = useState("");
@@ -281,10 +284,11 @@ export function AuthForm() {
   const [message, setMessage] = useState("");
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [nowTs, setNowTs] = useState(Date.now());
-  const [isVkidPreparing, setIsVkidPreparing] = useState(false);
+  const [isVkidPreparing, setIsVkidPreparing] = useState(hasVkidSdkFlow);
   const vkAutoCompleteRef = useRef(false);
   const submitLockRef = useRef(false);
   const vkClickLockRef = useRef(false);
+  const vkidSdkRef = useRef<VkidSdk | null>(null);
   const modeFromQuery = searchParams.get("mode");
   const vkAuthCode = searchParams.get("code");
   const vkAuthDeviceId = searchParams.get("device_id") ?? searchParams.get("deviceId");
@@ -430,9 +434,8 @@ export function AuthForm() {
       return;
     }
 
-    const vkidAppIdRaw = process.env.NEXT_PUBLIC_VKID_APP_ID?.trim();
-    const vkidAppId = vkidAppIdRaw ? Number(vkidAppIdRaw) : Number.NaN;
-    if (!Number.isFinite(vkidAppId) || vkidAppId <= 0) {
+    if (!hasVkidSdkFlow) {
+      setIsVkidPreparing(false);
       return;
     }
 
@@ -440,6 +443,11 @@ export function AuthForm() {
     setIsVkidPreparing(true);
 
     loadVkidSdk()
+      .then((sdk) => {
+        if (active) {
+          vkidSdkRef.current = sdk;
+        }
+      })
       .catch(() => {
         // SDK load errors are shown on login click; here we only warm it up.
       })
@@ -452,7 +460,7 @@ export function AuthForm() {
     return () => {
       active = false;
     };
-  }, [mode]);
+  }, [hasVkidSdkFlow, mode]);
 
   useEffect(() => {
     let active = true;
@@ -693,15 +701,18 @@ export function AuthForm() {
     setIsLoading(true);
     setError("");
     setMessage("");
+    let redirected = false;
 
     try {
       const appUrl = resolveAppUrl();
-      const vkidAppIdRaw = process.env.NEXT_PUBLIC_VKID_APP_ID?.trim();
-      const vkidAppId = vkidAppIdRaw ? Number(vkidAppIdRaw) : Number.NaN;
       const vkidScope = process.env.NEXT_PUBLIC_VKID_SCOPE?.trim() || "email";
 
-      if (Number.isFinite(vkidAppId) && vkidAppId > 0) {
-        const sdk = await loadVkidSdk();
+      if (hasVkidSdkFlow) {
+        const sdk = vkidSdkRef.current;
+        if (!sdk) {
+          setMessage("VK ID ещё подготавливается. Нажмите через 1-2 секунды.");
+          return;
+        }
 
         sdk.Config.init({
           app: vkidAppId,
@@ -720,12 +731,11 @@ export function AuthForm() {
         const codeData = extractVkCodePayload(loginPayload);
         if (!codeData) {
           setMessage("Продолжите вход в окне VK ID. После возврата авторизация завершится автоматически.");
-          setIsLoading(false);
-          vkClickLockRef.current = false;
           return;
         }
 
         await completeVkidLogin(codeData.code, codeData.deviceId, sdk);
+        redirected = true;
         return;
       }
 
@@ -754,6 +764,7 @@ export function AuthForm() {
           });
 
           window.location.assign(data.url);
+          redirected = true;
           return;
         }
 
@@ -767,8 +778,11 @@ export function AuthForm() {
           ? toReadableAuthError(oauthError.message, mode)
           : "Не удалось запустить VK ID авторизацию.",
       );
-      vkClickLockRef.current = false;
-      setIsLoading(false);
+    } finally {
+      if (!redirected) {
+        vkClickLockRef.current = false;
+        setIsLoading(false);
+      }
     }
   };
 
