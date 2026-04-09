@@ -1,10 +1,11 @@
 ﻿import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { LESSONS_TOTAL, LESSONS_TOTAL_LABEL } from "@/lib/lesson-stats";
 import { plans } from "@/lib/pricing";
 import { createClient } from "@/lib/supabase/server";
 
-const trustChips = ["50 уроков", "Проверка", "Без опыта"] as const;
+const trustChips = [LESSONS_TOTAL_LABEL, "Проверка", "Без опыта"];
 
 const howItWorks = [
   {
@@ -109,7 +110,7 @@ export default async function HomePage() {
               </ul>
 
               <div className="mt-4 rounded-2xl border border-[var(--line)] bg-white px-3 py-2 text-sm text-[var(--ink-soft)]">
-                <span className="font-semibold text-[var(--ink)]">Пройдено:</span> 0/50
+                <span className="font-semibold text-[var(--ink)]">Пройдено:</span> 0/{LESSONS_TOTAL}
                 <span className="mx-2 text-slate-300">|</span>
                 <span className="font-semibold text-[var(--ink)]">Новые ответы:</span> 0
               </div>
@@ -204,3 +205,4 @@ export default async function HomePage() {
     </>
   );
 }
+

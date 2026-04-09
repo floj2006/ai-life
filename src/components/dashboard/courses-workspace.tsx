@@ -40,7 +40,10 @@ export function CoursesWorkspace({ lessons, submissions }: CoursesWorkspaceProps
           </p>
         </div>
         <div className="grid gap-2 sm:grid-cols-1">
-          <Link href="/submissions?tab=active" className="action-button primary-button w-full">
+          <Link
+            href="/submissions?tab=active"
+            className="action-button primary-button w-full sm:min-w-[220px]"
+          >
             Мои задания
           </Link>
         </div>
@@ -53,13 +56,13 @@ export function CoursesWorkspace({ lessons, submissions }: CoursesWorkspaceProps
             const preview =
               submission.student_comment.trim() ||
               (submission.result_link
-                ? `Файл: ${submission.result_link}`
+                ? "Файл результата прикреплен. Нажмите «Перейти в задания», чтобы открыть детали."
                 : "Результат без комментария");
 
             return (
               <article
                 key={submission.id}
-                className="rounded-2xl border border-[var(--line)] bg-white p-4"
+                className="flex h-full flex-col rounded-2xl border border-[var(--line)] bg-white p-4"
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="rounded-full bg-sky-50 px-2 py-1 text-xs font-bold text-sky-700">
@@ -77,9 +80,11 @@ export function CoursesWorkspace({ lessons, submissions }: CoursesWorkspaceProps
                 ) : null}
 
                 <p className="mt-3 font-semibold">{lesson?.title ?? "Урок из истории"}</p>
-                <p className="small-text mt-2 min-h-[66px] text-sm">{preview}</p>
+                <p className="small-text mt-2 min-h-[72px] flex-1 text-sm [overflow-wrap:anywhere]">
+                  {preview}
+                </p>
 
-                <div className="mt-3 grid gap-2">
+                <div className="mt-auto grid gap-2 pt-3">
                   {lesson ? (
                     <Link
                       href={`/dashboard/lessons/${lesson.id}`}

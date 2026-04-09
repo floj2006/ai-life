@@ -45,10 +45,10 @@ const toMoneyNumber = (rawValue: string | undefined, envName: string) => {
 
 const getPlanAmountRub = (plan: PaidPlanId) => {
   if (plan === "start") {
-    return toMoneyNumber(process.env.YOOKASSA_START_AMOUNT_RUB ?? "990.00", "YOOKASSA_START_AMOUNT_RUB");
+    return toMoneyNumber(process.env.YOOKASSA_START_AMOUNT_RUB ?? "999.00", "YOOKASSA_START_AMOUNT_RUB");
   }
 
-  return toMoneyNumber(process.env.YOOKASSA_MAX_AMOUNT_RUB ?? "1399.00", "YOOKASSA_MAX_AMOUNT_RUB");
+  return toMoneyNumber(process.env.YOOKASSA_MAX_AMOUNT_RUB ?? "1999.00", "YOOKASSA_MAX_AMOUNT_RUB");
 };
 
 const parsePayload = async (request: Request) => {

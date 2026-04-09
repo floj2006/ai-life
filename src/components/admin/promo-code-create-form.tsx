@@ -91,42 +91,42 @@ export function PromoCodeCreateForm({ className = "" }: PromoCodeCreateFormProps
       </div>
 
       <div className="space-y-4">
-        <fieldset className="grid gap-3 sm:grid-cols-2">
+        <fieldset className="grid gap-3 lg:grid-cols-2">
           <label className="grid min-w-0 gap-1.5 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Код</span>
+            <span className="text-xs font-semibold uppercase tracking-wide leading-tight text-slate-600">Код</span>
             <input
               type="text"
               value={form.code}
               onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))}
               placeholder="WELCOME50"
-              className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm uppercase tracking-wide text-slate-900 placeholder:text-slate-400 focus:border-sky-300 focus:outline-none"
+              className="h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm uppercase tracking-wide text-slate-900 placeholder:text-slate-400 focus:border-sky-300 focus:outline-none"
               required
               maxLength={32}
             />
           </label>
 
           <label className="grid min-w-0 gap-1.5 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Название</span>
+            <span className="text-xs font-semibold uppercase tracking-wide leading-tight text-slate-600">Название (опционально)</span>
             <input
               type="text"
               value={form.title}
               onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
               placeholder="Запуск продукта"
-              className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-300 focus:outline-none"
+              className="h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-300 focus:outline-none"
               maxLength={120}
             />
           </label>
         </fieldset>
 
-        <fieldset className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <fieldset className="grid gap-3 xl:grid-cols-2 2xl:grid-cols-4">
           <label className="grid min-w-0 gap-1.5 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Тип скидки</span>
+            <span className="text-xs font-semibold uppercase tracking-wide leading-tight text-slate-600">Тип скидки</span>
             <select
               value={form.discountType}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, discountType: event.target.value as "percent" | "fixed_rub" }))
               }
-              className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-sky-300 focus:outline-none"
+              className="h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-sky-300 focus:outline-none"
             >
               <option value="percent">Проценты</option>
               <option value="fixed_rub">Рубли</option>
@@ -134,7 +134,7 @@ export function PromoCodeCreateForm({ className = "" }: PromoCodeCreateFormProps
           </label>
 
           <label className="grid min-w-0 gap-1.5 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Значение</span>
+            <span className="text-xs font-semibold uppercase tracking-wide leading-tight text-slate-600">Значение</span>
             <input
               type="number"
               min={1}
@@ -142,19 +142,19 @@ export function PromoCodeCreateForm({ className = "" }: PromoCodeCreateFormProps
               step={1}
               value={form.discountValue}
               onChange={(event) => setForm((prev) => ({ ...prev, discountValue: event.target.value }))}
-              className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-sky-300 focus:outline-none"
+              className="h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-sky-300 focus:outline-none"
               required
             />
           </label>
 
           <label className="grid min-w-0 gap-1.5 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Тариф</span>
+            <span className="text-xs font-semibold uppercase tracking-wide leading-tight text-slate-600">Тариф</span>
             <select
               value={form.planScope}
               onChange={(event) =>
                 setForm((prev) => ({ ...prev, planScope: event.target.value as "all" | "start" | "max" }))
               }
-              className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-sky-300 focus:outline-none"
+              className="h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-sky-300 focus:outline-none"
             >
               <option value="all">Любой тариф</option>
               <option value="start">Только Старт</option>
@@ -163,7 +163,7 @@ export function PromoCodeCreateForm({ className = "" }: PromoCodeCreateFormProps
           </label>
 
           <label className="grid min-w-0 gap-1.5 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Лимит</span>
+            <span className="text-xs font-semibold uppercase tracking-wide leading-tight text-slate-600">Лимит использований</span>
             <input
               type="number"
               min={1}
@@ -171,29 +171,29 @@ export function PromoCodeCreateForm({ className = "" }: PromoCodeCreateFormProps
               value={form.maxUses}
               onChange={(event) => setForm((prev) => ({ ...prev, maxUses: event.target.value }))}
               placeholder="Без лимита"
-              className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-300 focus:outline-none"
+              className="h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 placeholder:text-slate-400 focus:border-sky-300 focus:outline-none"
             />
           </label>
         </fieldset>
 
-        <fieldset className="grid gap-3 sm:grid-cols-2">
+        <fieldset className="grid gap-3 lg:grid-cols-2">
           <label className="grid min-w-0 gap-1.5 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Действует с</span>
+            <span className="text-xs font-semibold uppercase tracking-wide leading-tight text-slate-600">Действует с (опционально)</span>
             <input
               type="datetime-local"
               value={form.startsAt}
               onChange={(event) => setForm((prev) => ({ ...prev, startsAt: event.target.value }))}
-              className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-sky-300 focus:outline-none"
+              className="h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-sky-300 focus:outline-none"
             />
           </label>
 
           <label className="grid min-w-0 gap-1.5 text-sm">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-600">Действует до</span>
+            <span className="text-xs font-semibold uppercase tracking-wide leading-tight text-slate-600">Действует до (опционально)</span>
             <input
               type="datetime-local"
               value={form.expiresAt}
               onChange={(event) => setForm((prev) => ({ ...prev, expiresAt: event.target.value }))}
-              className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-sky-300 focus:outline-none"
+              className="h-11 w-full min-w-0 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 focus:border-sky-300 focus:outline-none"
             />
           </label>
         </fieldset>

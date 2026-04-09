@@ -1,4 +1,6 @@
-﻿export type DemoResult = {
+﻿import { LESSONS_TOTAL } from "@/lib/lesson-stats";
+
+export type DemoResult = {
   id: string;
   title: string;
   category: "photo" | "video" | "text" | "business" | "photosession";
@@ -23,7 +25,7 @@ export const demoDashboardData: DemoDashboardData = {
     fullName: "Анна",
     tier: "Новичок",
     lessonsCompleted: 7,
-    lessonsTotal: 50,
+    lessonsTotal: LESSONS_TOTAL,
     pendingFeedback: 2,
   },
   results: [
@@ -56,3 +58,4 @@ export const demoDashboardData: DemoDashboardData = {
     },
   ],
 };
+

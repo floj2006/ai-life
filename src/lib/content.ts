@@ -122,13 +122,13 @@ const HOMEWORK_COMMON_MISTAKES_BY_CATEGORY: Record<LessonCategory, string[]> = {
 
 const SYNTX_MODEL_GUIDES: Record<LessonCategory, SyntxModelGuide> = {
   photo: {
-    primary: "FLUX Pro",
-    alternatives: ["Ideogram", "Recraft"],
+    primary: "Nano Banana Pro",
+    alternatives: ["FLUX Pro", "Ideogram"],
     whenToUse: "Лучше всего подходит для фотореализма, света, фактуры и чистых визуалов.",
   },
   photosession: {
-    primary: "FLUX Pro",
-    alternatives: ["Ideogram", "Recraft"],
+    primary: "Nano Banana Pro",
+    alternatives: ["FLUX Pro", "Ideogram"],
     whenToUse: "Лучше всего подходит для реалистичных фотосессий с точным светом и кожей.",
   },
   video: {

@@ -111,14 +111,18 @@ export function HourlyLessonShowcase({ lessons }: HourlyLessonShowcaseProps) {
             key={lesson.id}
             className="flex h-full flex-col rounded-2xl bg-white/92 p-4 ring-1 ring-[var(--line)]"
           >
-            <div className="flex flex-wrap items-center gap-2">
-              <LessonCategoryChip category={lesson.category} />
-              <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700">
-                {lesson.duration_minutes} мин
-              </span>
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <LessonCategoryChip category={lesson.category} />
+                <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold text-zinc-700">
+                  {lesson.duration_minutes} мин
+                </span>
+              </div>
+              <h3 className="mt-3 text-lg font-bold leading-snug">{lesson.title}</h3>
+              <p className="small-text mt-1 min-h-[72px] [overflow-wrap:anywhere]">
+                {lesson.short_description}
+              </p>
             </div>
-            <h3 className="mt-3 text-lg font-bold leading-snug">{lesson.title}</h3>
-            <p className="small-text mt-1">{lesson.short_description}</p>
             <Link
               href={`/dashboard/lessons/${lesson.id}`}
               className="action-button primary-button mt-4 w-full"

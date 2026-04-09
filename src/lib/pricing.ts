@@ -1,4 +1,6 @@
-﻿export type PaidPlanId = "start" | "max";
+﻿import { LESSONS_TOTAL } from "@/lib/lesson-stats";
+
+export type PaidPlanId = "start" | "max";
 export type PlanId = PaidPlanId;
 
 export type Plan = {
@@ -15,8 +17,8 @@ export const plans: Plan[] = [
     id: "start",
     title: "Старт",
     subtitle: "Практика в Syntx AI каждый день",
-    priceRub: 990,
-    priceLabel: "990 ₽",
+    priceRub: 999,
+    priceLabel: "999 ₽",
     features: [
       "Доступ к урокам уровня «Новичок» и «Старт»",
       "Практика в одном сервисе: Syntx AI",
@@ -26,9 +28,9 @@ export const plans: Plan[] = [
   {
     id: "max",
     title: "Макс",
-    subtitle: "Полный доступ ко всем 50 урокам",
-    priceRub: 1399,
-    priceLabel: "1 399 ₽",
+    subtitle: `Полный доступ ко всем ${LESSONS_TOTAL} урокам`,
+    priceRub: 1999,
+    priceLabel: "1 999 ₽",
     features: [
       "Все возможности тарифа «Старт»",
       "Уроки уровня «Макс» (продвинутые сценарии)",
@@ -47,3 +49,4 @@ export const paidPlanById: Record<PaidPlanId, Plan> = {
 export const isPaidPlanId = (value: unknown): value is PaidPlanId => {
   return value === "start" || value === "max";
 };
+
