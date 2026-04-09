@@ -51,6 +51,29 @@ const getAppUrl = (request: Request) => {
   return new URL(request.url).origin.replace(/\/+$/, "");
 };
 
+const normalizeMagicLinkUrl = (actionLink: string, appUrl: string) => {
+  try {
+    const appBase = new URL(appUrl);
+    const link = new URL(actionLink);
+
+    link.protocol = appBase.protocol;
+    link.host = appBase.host;
+
+    if (
+      link.hash.includes("access_token=") ||
+      link.hash.includes("refresh_token=") ||
+      link.hash.includes("type=magiclink")
+    ) {
+      link.pathname = "/auth";
+      link.search = "";
+    }
+
+    return link.toString();
+  } catch {
+    return actionLink;
+  }
+};
+
 const fetchVkidUserInfo = async (accessToken: string) => {
   const clientId = process.env.NEXT_PUBLIC_VKID_APP_ID?.trim();
   if (!clientId) {
@@ -249,8 +272,10 @@ export async function POST(request: Request) {
       throw new Error("Supabase не вернул ссылку входа.");
     }
 
+    const normalizedLoginUrl = normalizeMagicLinkUrl(actionLink, appUrl);
+
     return NextResponse.json({
-      loginUrl: actionLink,
+      loginUrl: normalizedLoginUrl,
       created: !authUser.last_sign_in_at,
     });
   } catch (error) {

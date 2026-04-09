@@ -344,6 +344,40 @@ export function AuthForm() {
   }, []);
 
   useEffect(() => {
+    let active = true;
+
+    const syncSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      if (!active) {
+        return;
+      }
+
+      if (data.session) {
+        router.replace("/dashboard");
+        router.refresh();
+      }
+    };
+
+    void syncSession();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!session) {
+        return;
+      }
+
+      router.replace("/dashboard");
+      router.refresh();
+    });
+
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
+  }, [router, supabase]);
+
+  useEffect(() => {
     if (mode === "forgot") {
       return;
     }
@@ -564,6 +598,7 @@ export function AuthForm() {
         const codeData = extractVkCodePayload(loginPayload);
         if (!codeData) {
           setMessage("Продолжите вход в окне VK ID. После возврата авторизация завершится автоматически.");
+          setIsLoading(false);
           return;
         }
 
