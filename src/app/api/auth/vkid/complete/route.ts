@@ -236,7 +236,7 @@ export async function POST(request: Request) {
       type: "magiclink",
       email: authEmail,
       options: {
-        redirectTo: `${appUrl}/dashboard`,
+        redirectTo: `${appUrl}/auth/callback?next=/dashboard`,
       },
     });
 
