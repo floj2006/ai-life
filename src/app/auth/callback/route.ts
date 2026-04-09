@@ -24,11 +24,21 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code");
   const nextPath = resolveSafeNextPath(requestUrl.searchParams.get("next"));
 
-  if (code) {
-    const supabase = await createClient();
-    await supabase.auth.exchangeCodeForSession(code);
+  console.info("[auth/callback] hit", requestUrl.toString());
+  console.info("[auth/callback] nextPath", nextPath);
+
+  if (!code) {
+    console.error("[auth/callback] no code in callback URL");
+    return NextResponse.redirect(new URL("/auth?error=no_code", requestUrl.origin));
   }
 
+  const supabase = await createClient();
+  const { error } = await supabase.auth.exchangeCodeForSession(code);
+  if (error) {
+    console.error("[auth/callback] exchangeCodeForSession failed", error);
+    return NextResponse.redirect(new URL("/auth?error=exchange_failed", requestUrl.origin));
+  }
+
+  console.info("[auth/callback] exchange success, redirecting", nextPath);
   return NextResponse.redirect(new URL(nextPath, requestUrl.origin));
 }
-

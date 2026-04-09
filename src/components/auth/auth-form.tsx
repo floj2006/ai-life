@@ -281,7 +281,10 @@ export function AuthForm() {
   const [message, setMessage] = useState("");
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [nowTs, setNowTs] = useState(Date.now());
+  const [isVkidPreparing, setIsVkidPreparing] = useState(false);
   const vkAutoCompleteRef = useRef(false);
+  const submitLockRef = useRef(false);
+  const vkClickLockRef = useRef(false);
   const modeFromQuery = searchParams.get("mode");
   const vkAuthCode = searchParams.get("code");
   const vkAuthDeviceId = searchParams.get("device_id") ?? searchParams.get("deviceId");
@@ -423,6 +426,35 @@ export function AuthForm() {
   }, [mode, router, supabase]);
 
   useEffect(() => {
+    if (mode === "forgot") {
+      return;
+    }
+
+    const vkidAppIdRaw = process.env.NEXT_PUBLIC_VKID_APP_ID?.trim();
+    const vkidAppId = vkidAppIdRaw ? Number(vkidAppIdRaw) : Number.NaN;
+    if (!Number.isFinite(vkidAppId) || vkidAppId <= 0) {
+      return;
+    }
+
+    let active = true;
+    setIsVkidPreparing(true);
+
+    loadVkidSdk()
+      .catch(() => {
+        // SDK load errors are shown on login click; here we only warm it up.
+      })
+      .finally(() => {
+        if (active) {
+          setIsVkidPreparing(false);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [mode]);
+
+  useEffect(() => {
     let active = true;
 
     const syncSession = async () => {
@@ -546,6 +578,11 @@ export function AuthForm() {
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (submitLockRef.current) {
+      return;
+    }
+
+    submitLockRef.current = true;
     setIsLoading(true);
     setError("");
     setMessage("");
@@ -642,11 +679,17 @@ export function AuthForm() {
         "Мы отправили письмо со ссылкой для сброса пароля. Проверьте почту и папку Спам.",
       );
     } finally {
+      submitLockRef.current = false;
       setIsLoading(false);
     }
   };
 
   const onVkLogin = async () => {
+    if (vkClickLockRef.current || isLoading) {
+      return;
+    }
+
+    vkClickLockRef.current = true;
     setIsLoading(true);
     setError("");
     setMessage("");
@@ -678,6 +721,7 @@ export function AuthForm() {
         if (!codeData) {
           setMessage("Продолжите вход в окне VK ID. После возврата авторизация завершится автоматически.");
           setIsLoading(false);
+          vkClickLockRef.current = false;
           return;
         }
 
@@ -723,6 +767,7 @@ export function AuthForm() {
           ? toReadableAuthError(oauthError.message, mode)
           : "Не удалось запустить VK ID авторизацию.",
       );
+      vkClickLockRef.current = false;
       setIsLoading(false);
     }
   };
@@ -860,10 +905,14 @@ export function AuthForm() {
           <button
             type="button"
             onClick={onVkLogin}
-            disabled={isLoading}
+            disabled={isLoading || isVkidPreparing}
             className="action-button secondary-button w-full"
           >
-            {isLoading ? "Подключаем VK ID..." : "Продолжить через VK ID"}
+            {isLoading
+              ? "Подключаем VK ID..."
+              : isVkidPreparing
+                ? "Подготавливаем VK ID..."
+                : "Продолжить через VK ID"}
           </button>
         </>
       ) : null}
