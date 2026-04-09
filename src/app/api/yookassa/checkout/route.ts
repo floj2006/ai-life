@@ -43,12 +43,25 @@ const toMoneyNumber = (rawValue: string | undefined, envName: string) => {
   return normalized;
 };
 
+const shouldUseEnvPlanAmounts = () => {
+  return process.env.YOOKASSA_USE_ENV_AMOUNTS === "true";
+};
+
 const getPlanAmountRub = (plan: PaidPlanId) => {
-  if (plan === "start") {
-    return toMoneyNumber(process.env.YOOKASSA_START_AMOUNT_RUB ?? "1999.00", "YOOKASSA_START_AMOUNT_RUB");
+  const planPriceRub = paidPlanById[plan].priceRub;
+  if (!shouldUseEnvPlanAmounts()) {
+    return planPriceRub;
   }
 
-  return toMoneyNumber(process.env.YOOKASSA_MAX_AMOUNT_RUB ?? "2999.00", "YOOKASSA_MAX_AMOUNT_RUB");
+  try {
+    if (plan === "start") {
+      return toMoneyNumber(process.env.YOOKASSA_START_AMOUNT_RUB, "YOOKASSA_START_AMOUNT_RUB");
+    }
+
+    return toMoneyNumber(process.env.YOOKASSA_MAX_AMOUNT_RUB, "YOOKASSA_MAX_AMOUNT_RUB");
+  } catch {
+    return planPriceRub;
+  }
 };
 
 const parsePayload = async (request: Request) => {

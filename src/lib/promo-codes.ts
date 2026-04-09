@@ -19,6 +19,7 @@ export type PromoCodeRecord = {
 };
 
 const PROMO_CODE_RE = /^[A-Z0-9][A-Z0-9_-]{2,31}$/;
+const MIN_PAYMENT_RUB = 1;
 
 export const normalizePromoCode = (value: string | undefined | null) => {
   return (value ?? "").trim().toUpperCase().replace(/\s+/g, "");
@@ -49,12 +50,12 @@ export const validatePromoAvailability = (promo: PromoCodeRecord, now = new Date
 
   const startsAt = promo.starts_at ? new Date(promo.starts_at) : null;
   if (startsAt && !Number.isNaN(startsAt.getTime()) && startsAt > now) {
-    return { ok: false as const, error: "Промокод еще не активен." };
+    return { ok: false as const, error: "Промокод ещё не активен." };
   }
 
   const expiresAt = promo.expires_at ? new Date(promo.expires_at) : null;
   if (expiresAt && !Number.isNaN(expiresAt.getTime()) && expiresAt < now) {
-    return { ok: false as const, error: "Срок действия промокода истек." };
+    return { ok: false as const, error: "Срок действия промокода истёк." };
   }
 
   if (
@@ -68,8 +69,11 @@ export const validatePromoAvailability = (promo: PromoCodeRecord, now = new Date
   return { ok: true as const };
 };
 
-const toKopecks = (rub: number) => Math.round(rub * 100);
-const toRub = (kopecks: number) => kopecks / 100;
+const toWholeRub = (value: number) => Math.round(value);
+
+const toMoney = (value: number) => {
+  return Number(value.toFixed(2));
+};
 
 export const calculateDiscountedAmount = ({
   baseAmountRub,
@@ -80,26 +84,27 @@ export const calculateDiscountedAmount = ({
   discountType: PromoDiscountType;
   discountValue: number;
 }) => {
-  const baseKopecks = toKopecks(baseAmountRub);
-  const rawDiscountKopecks =
+  const safeBaseAmount = Math.max(MIN_PAYMENT_RUB, toWholeRub(baseAmountRub));
+
+  const rawDiscountRub =
     discountType === "percent"
-      ? Math.round((baseKopecks * discountValue) / 100)
-      : toKopecks(discountValue);
+      ? toWholeRub((safeBaseAmount * discountValue) / 100)
+      : toWholeRub(discountValue);
 
-  const discountKopecks = Math.max(0, Math.min(baseKopecks, rawDiscountKopecks));
-  const minPaymentKopecks = 100;
-  const finalKopecks = Math.max(minPaymentKopecks, baseKopecks - discountKopecks);
-  const effectiveDiscountKopecks = baseKopecks - finalKopecks;
+  const maxDiscountRub = Math.max(0, safeBaseAmount - MIN_PAYMENT_RUB);
+  const discountRub = Math.max(0, Math.min(maxDiscountRub, rawDiscountRub));
+  const finalAmountRub = Math.max(MIN_PAYMENT_RUB, safeBaseAmount - discountRub);
 
-  const finalAmountRub = toRub(finalKopecks);
-  const discountRub = toRub(effectiveDiscountKopecks);
+  const normalizedBase = toMoney(safeBaseAmount);
+  const normalizedFinal = toMoney(finalAmountRub);
+  const normalizedDiscount = toMoney(discountRub);
 
   return {
-    baseAmountRub,
-    finalAmountRub,
-    discountRub,
-    finalAmountValue: finalAmountRub.toFixed(2),
-    discountValue: discountRub.toFixed(2),
+    baseAmountRub: normalizedBase,
+    finalAmountRub: normalizedFinal,
+    discountRub: normalizedDiscount,
+    finalAmountValue: normalizedFinal.toFixed(2),
+    discountValue: normalizedDiscount.toFixed(2),
   };
 };
 
@@ -116,6 +121,5 @@ export const formatPromoDiscountLabel = (
     return `-${numeric}%`;
   }
 
-  return `-${numeric.toFixed(0)} ₽`;
+  return `-${Math.round(numeric)} ₽`;
 };
-
