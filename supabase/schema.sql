@@ -1,4 +1,4 @@
-﻿-- Run this in Supabase SQL Editor.
+-- Run this in Supabase SQL Editor.
 -- Safe for existing projects: includes migration steps and backfill.
 
 create extension if not exists pgcrypto;
@@ -127,6 +127,59 @@ create index if not exists admin_audit_logs_created_idx
 
 create index if not exists admin_audit_logs_action_idx
   on public.admin_audit_logs(action);
+
+create table if not exists public.promo_codes (
+  id uuid primary key default gen_random_uuid(),
+  code text not null unique,
+  title text,
+  discount_type text not null default 'percent',
+  discount_value numeric(10,2) not null,
+  plan_scope text not null default 'all',
+  is_active boolean not null default true,
+  max_uses integer,
+  used_count integer not null default 0,
+  starts_at timestamptz,
+  expires_at timestamptz,
+  created_by uuid references public.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  constraint promo_codes_discount_type_check
+    check (discount_type in ('percent', 'fixed_rub')),
+  constraint promo_codes_plan_scope_check
+    check (plan_scope in ('all', 'start', 'max')),
+  constraint promo_codes_discount_value_check
+    check (discount_value > 0),
+  constraint promo_codes_max_uses_check
+    check (max_uses is null or max_uses > 0),
+  constraint promo_codes_used_count_check
+    check (used_count >= 0)
+);
+
+create index if not exists promo_codes_created_idx
+  on public.promo_codes(created_at desc);
+
+create index if not exists promo_codes_active_idx
+  on public.promo_codes(is_active);
+
+create table if not exists public.promo_code_redemptions (
+  id uuid primary key default gen_random_uuid(),
+  promo_code_id uuid not null references public.promo_codes(id) on delete cascade,
+  user_id uuid references public.users(id) on delete set null,
+  payment_id text not null unique,
+  plan_id text not null,
+  payment_amount_rub numeric(10,2) not null,
+  discount_rub numeric(10,2) not null default 0,
+  created_at timestamptz not null default now(),
+  constraint promo_code_redemptions_plan_id_check
+    check (plan_id in ('start', 'max')),
+  constraint promo_code_redemptions_discount_rub_check
+    check (discount_rub >= 0)
+);
+
+create index if not exists promo_code_redemptions_created_idx
+  on public.promo_code_redemptions(created_at desc);
+
+create index if not exists promo_code_redemptions_user_idx
+  on public.promo_code_redemptions(user_id);
 
 insert into storage.buckets (
   id,
@@ -259,6 +312,8 @@ alter table public.submission_messages enable row level security;
 alter table public.analytics_events enable row level security;
 alter table public.app_error_events enable row level security;
 alter table public.admin_audit_logs enable row level security;
+alter table public.promo_codes enable row level security;
+alter table public.promo_code_redemptions enable row level security;
 
 drop policy if exists "Users can read own profile" on public.users;
 create policy "Users can read own profile"

@@ -1,23 +1,25 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import type { ReactNode } from "react";
+import { PromoCodeCreateForm } from "@/components/admin/promo-code-create-form";
 import { TierUpdateForm } from "@/components/admin/tier-update-form";
 import { LogoutButton } from "@/components/dashboard/logout-button";
 import { MobileBottomNav } from "@/components/navigation/mobile-bottom-nav";
 import { ReviewBoard, type ReviewSubmissionItem } from "@/components/review/review-board";
 import { requireAdminUser } from "@/lib/admin-access";
-import { getDirectPaymentContactText, getDirectPaymentRequisites } from "@/lib/direct-payment";
 import {
   buildDbLessonReferenceMap,
   collectUnresolvedLessonIds,
   resolveDemoLessonFromReference,
 } from "@/lib/lesson-reference";
 import { cleanLessonTitle } from "@/lib/lesson-title";
+import { formatPromoDiscountLabel } from "@/lib/promo-codes";
 import { plans } from "@/lib/pricing";
 import { buildSubmissionMediaPreviewMap } from "@/lib/submission-media-preview";
 import { isSubmissionStatus, submissionStatusLabels } from "@/lib/submissions";
 import { getTierLabel, normalizeSubscriptionTier } from "@/lib/subscription";
 import { decryptRecordFields } from "@/lib/security/encryption";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { isYooKassaConfigured } from "@/lib/yookassa";
 import type {
   Lesson,
   LessonSubmission,
@@ -61,6 +63,21 @@ type AnalyticsUserRow = {
 type LessonReferenceRow = {
   id: string;
   slug: string | null;
+};
+
+type PromoCodeRow = {
+  id: string;
+  code: string;
+  title: string | null;
+  discount_type: "percent" | "fixed_rub";
+  discount_value: number | string;
+  plan_scope: "all" | "start" | "max";
+  is_active: boolean;
+  max_uses: number | null;
+  used_count: number;
+  starts_at: string | null;
+  expires_at: string | null;
+  created_at: string | null;
 };
 
 type SidebarItem = {
@@ -255,6 +272,18 @@ const sidebarItems: SidebarItem[] = [
     ),
   },
   {
+    label: "Промокоды",
+    href: "/admin#promo-codes",
+    icon: (
+      <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.9">
+        <path d="M4 8a2 2 0 0 1 2-2h12v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" />
+        <path d="M9 6v4" />
+        <path d="M13 6v4" />
+        <path d="M8 14h8" />
+      </svg>
+    ),
+  },
+  {
     label: "Настройки",
     href: "/admin#settings",
     icon: (
@@ -296,6 +325,7 @@ export default async function AdminPage() {
     analyticsUsersResult,
     errorCountResult,
     messagesCountResult,
+    promoCodesResult,
   ] = await Promise.all([
     admin.auth.admin.listUsers({
       page: 1,
@@ -330,6 +360,13 @@ export default async function AdminPage() {
       .from("submission_messages")
       .select("id", { count: "exact", head: true })
       .gte("created_at", since24hIso),
+    admin
+      .from("promo_codes")
+      .select(
+        "id, code, title, discount_type, discount_value, plan_scope, is_active, max_uses, used_count, starts_at, expires_at, created_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(100),
   ]);
 
   const usersTableMissing = isMissingTableError(usersResult.error?.message, "users");
@@ -347,6 +384,7 @@ export default async function AdminPage() {
     messagesCountResult.error?.message,
     "submission_messages",
   );
+  const promoCodesTableMissing = isMissingTableError(promoCodesResult.error?.message, "promo_codes");
 
   if (usersResult.error && !usersTableMissing) {
     return renderFatal(`Не удалось загрузить пользователей: ${usersResult.error.message}`);
@@ -378,6 +416,10 @@ export default async function AdminPage() {
     return renderFatal(`Не удалось загрузить сообщения: ${messagesCountResult.error.message}`);
   }
 
+  if (promoCodesResult.error && !promoCodesTableMissing) {
+    return renderFatal(`Не удалось загрузить промокоды: ${promoCodesResult.error.message}`);
+  }
+
   const warnings: string[] = [];
   if (usersTableMissing) {
     warnings.push("Таблица public.users не найдена: список пользователей загружен из системы авторизации.");
@@ -397,6 +439,9 @@ export default async function AdminPage() {
   if (messagesTableMissing) {
     warnings.push("Таблица public.submission_messages не найдена: метрика сообщений недоступна.");
   }
+  if (promoCodesTableMissing) {
+    warnings.push("Таблица public.promo_codes не найдена: управление промокодами недоступно.");
+  }
 
   const authRows = (authUsersResult.data?.users ?? []).map(mapAuthUserToRow);
   const decryptedUsers = usersTableMissing
@@ -405,6 +450,7 @@ export default async function AdminPage() {
         decryptRecordFields(row, ["full_name", "email"]),
       );
   const users = usersTableMissing ? authRows : mergeUsers(decryptedUsers, authRows);
+  const promoCodes = promoCodesTableMissing ? [] : ((promoCodesResult.data ?? []) as PromoCodeRow[]);
 
   const submissionsRaw = submissionsTableMissing
     ? []
@@ -577,9 +623,8 @@ export default async function AdminPage() {
   );
   const startPlan = plans.find((plan) => plan.id === "start");
   const maxPlan = plans.find((plan) => plan.id === "max");
-  const startRequisites = getDirectPaymentRequisites("start");
-  const maxRequisites = getDirectPaymentRequisites("max");
-  const paymentContact = getDirectPaymentContactText();
+  const yookassaConfigured = isYooKassaConfigured();
+  const activePromoCodesCount = promoCodes.filter((item) => item.is_active).length;
 
   return (
     <main className="with-mobile-nav min-h-screen bg-[#f5f7fb]">
@@ -819,6 +864,12 @@ export default async function AdminPage() {
                       Последние сообщения
                     </a>
                     <a
+                      href="#promo-codes"
+                      className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    >
+                      Управление промокодами
+                    </a>
+                    <a
                       href="#settings"
                       className="inline-flex h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                     >
@@ -858,7 +909,7 @@ export default async function AdminPage() {
                   className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.08)]"
                 >
                   <h2 className="text-lg font-semibold text-slate-900">Тарифы и планы</h2>
-                  <p className="mt-2 text-sm text-slate-600">Распределение пользователей и действующие реквизиты.</p>
+                  <p className="mt-2 text-sm text-slate-600">Распределение пользователей и статус онлайн-оплаты.</p>
                   <div className="mt-4 grid gap-2">
                     <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
                       <span className="text-sm text-slate-600">Новичок</span>
@@ -872,6 +923,20 @@ export default async function AdminPage() {
                       <span className="text-sm text-slate-600">Макс</span>
                       <span className="text-sm font-semibold text-slate-900">{usersByTier.max}</span>
                     </div>
+                    <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span className="text-sm text-slate-600">ЮKassa</span>
+                      <span
+                        className={`text-sm font-semibold ${
+                          yookassaConfigured ? "text-emerald-700" : "text-amber-700"
+                        }`}
+                      >
+                        {yookassaConfigured ? "настроена" : "не настроена"}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span className="text-sm text-slate-600">Активные промокоды</span>
+                      <span className="text-sm font-semibold text-slate-900">{activePromoCodesCount}</span>
+                    </div>
                   </div>
 
                   <div className="mt-4 space-y-3">
@@ -879,24 +944,86 @@ export default async function AdminPage() {
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                         {startPlan?.title ?? "Старт"} • {startPlan?.priceLabel ?? ""}
                       </p>
-                      <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-700">
-                        {startRequisites || "Реквизиты тарифа «Старт» не заполнены."}
-                      </pre>
+                      <p className="mt-2 text-xs text-slate-700">Оплата: онлайн через ЮKassa</p>
                     </div>
 
                     <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
                       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                         {maxPlan?.title ?? "Макс"} • {maxPlan?.priceLabel ?? ""}
                       </p>
-                      <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-700">
-                        {maxRequisites || "Реквизиты тарифа «Макс» не заполнены."}
-                      </pre>
+                      <p className="mt-2 text-xs text-slate-700">Оплата: онлайн через ЮKassa</p>
                     </div>
                   </div>
+                </section>
 
-                  {paymentContact ? (
-                    <p className="mt-3 text-xs text-slate-600">Куда отправляют подтверждение оплаты: {paymentContact}</p>
-                  ) : null}
+                <section
+                  id="promo-codes"
+                  className="rounded-xl border border-slate-200 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.08)]"
+                >
+                  <h2 className="text-lg font-semibold text-slate-900">Промокоды</h2>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Создайте промокод для скидки на оплату тарифа. Скидка применяется автоматически в биллинге.
+                  </p>
+
+                  {promoCodesTableMissing ? (
+                    <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                      Таблица <code>public.promo_codes</code> не найдена. Примените SQL-схему, чтобы включить
+                      промокоды.
+                    </div>
+                  ) : (
+                    <>
+                      <div className="mt-4 rounded-xl border border-sky-100 bg-gradient-to-b from-sky-50/70 to-white p-3 md:p-4">
+                        <PromoCodeCreateForm />
+                      </div>
+
+                      {promoCodes.length === 0 ? (
+                        <p className="mt-3 text-sm text-slate-600">Промокоды пока не созданы.</p>
+                      ) : (
+                        <ul className="mt-4 grid gap-2 md:grid-cols-2">
+                          {promoCodes.slice(0, 10).map((promo) => {
+                            const planLabel =
+                              promo.plan_scope === "all"
+                                ? "Любой тариф"
+                                : promo.plan_scope === "start"
+                                  ? "Только Старт"
+                                  : "Только Макс";
+                            const usageLabel =
+                              typeof promo.max_uses === "number" && promo.max_uses > 0
+                                ? `${promo.used_count}/${promo.max_uses}`
+                                : `${promo.used_count} использований`;
+
+                            return (
+                              <li
+                                key={promo.id}
+                                className="rounded-xl border border-slate-200 bg-white p-3 shadow-[0_1px_2px_rgba(15,23,42,0.05)]"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                  <p className="text-sm font-semibold text-slate-900">{promo.code}</p>
+                                  <span
+                                    className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${
+                                      promo.is_active
+                                        ? "bg-emerald-100 text-emerald-700"
+                                        : "bg-slate-200 text-slate-600"
+                                    }`}
+                                  >
+                                    {promo.is_active ? "Активен" : "Выключен"}
+                                  </span>
+                                </div>
+
+                                <p className="mt-1 text-xs text-slate-600">
+                                  {promo.title || "Без названия"} • {formatPromoDiscountLabel(promo.discount_type, promo.discount_value)} • {planLabel}
+                                </p>
+                                <p className="mt-1 text-xs text-slate-500">
+                                  Использования: {usageLabel}
+                                  {promo.expires_at ? ` • До ${formatDateTime(promo.expires_at)}` : ""}
+                                </p>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </>
+                  )}
                 </section>
 
                 <section
@@ -971,6 +1098,12 @@ export default async function AdminPage() {
                       <span>analytics_events</span>
                       <span className={analyticsTableMissing ? "text-amber-700" : "text-emerald-700"}>
                         {analyticsTableMissing ? "не найдена" : "готово"}
+                      </span>
+                    </li>
+                    <li className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+                      <span>promo_codes</span>
+                      <span className={promoCodesTableMissing ? "text-amber-700" : "text-emerald-700"}>
+                        {promoCodesTableMissing ? "не найдена" : "готово"}
                       </span>
                     </li>
                   </ul>

@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { LessonCategoryChip } from "@/components/dashboard/lesson-category-chip";
 import { LogoutButton } from "@/components/dashboard/logout-button";
@@ -356,7 +356,7 @@ export default async function DashboardPage() {
                       <div className="mt-3.5">
                         <StartProButton
                           plan={upgradePlan.id}
-                          buttonLabel={`Открыть реквизиты ${upgradePlan.title}`}
+                          buttonLabel={`Перейти к оплате ${upgradePlan.title}`}
                         />
                       </div>
                     </div>

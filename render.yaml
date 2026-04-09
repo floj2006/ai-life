@@ -23,17 +23,15 @@ services:
         sync: false
       - key: APP_ADMIN_EMAILS
         sync: false
-      - key: NEXT_PUBLIC_DIRECT_PAYMENT_START_REQUISITES
-        sync: false
-      - key: NEXT_PUBLIC_DIRECT_PAYMENT_MAX_REQUISITES
-        sync: false
-      - key: NEXT_PUBLIC_DIRECT_PAYMENT_REQUISITES
-        sync: false
-      - key: NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_TEXT
-        sync: false
-      - key: NEXT_PUBLIC_DIRECT_PAYMENT_CONTACT_URL
-        sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: YOOKASSA_SHOP_ID
+        sync: false
+      - key: YOOKASSA_SECRET_KEY
+        sync: false
+      - key: YOOKASSA_START_AMOUNT_RUB
+        sync: false
+      - key: YOOKASSA_MAX_AMOUNT_RUB
         sync: false

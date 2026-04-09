@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
@@ -12,7 +12,7 @@ type StartProButtonProps = {
 
 export function StartProButton({
   plan = "max",
-  buttonLabel = "Открыть реквизиты Макс",
+  buttonLabel = "Перейти к оплате Макс",
 }: StartProButtonProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
