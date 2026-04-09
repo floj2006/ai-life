@@ -51,24 +51,26 @@ const getAppUrl = (request: Request) => {
   return new URL(request.url).origin.replace(/\/+$/, "");
 };
 
-const normalizeMagicLinkUrl = (actionLink: string, appUrl: string) => {
+const buildSupabaseVerifyUrl = (token: string, redirectTo: string) => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
+  if (!supabaseUrl || !/^https?:\/\//.test(supabaseUrl)) {
+    return null;
+  }
+
   try {
-    const appBase = new URL(appUrl);
-    const link = new URL(actionLink);
+    const verifyUrl = new URL("/auth/v1/verify", supabaseUrl);
+    verifyUrl.searchParams.set("token", token);
+    verifyUrl.searchParams.set("type", "magiclink");
+    verifyUrl.searchParams.set("redirect_to", redirectTo);
+    return verifyUrl.toString();
+  } catch {
+    return null;
+  }
+};
 
-    link.protocol = appBase.protocol;
-    link.host = appBase.host;
-
-    if (
-      link.hash.includes("access_token=") ||
-      link.hash.includes("refresh_token=") ||
-      link.hash.includes("type=magiclink")
-    ) {
-      link.pathname = "/auth";
-      link.search = "";
-    }
-
-    return link.toString();
+const normalizeMagicLinkUrl = (actionLink: string) => {
+  try {
+    return new URL(actionLink).toString();
   } catch {
     return actionLink;
   }
@@ -255,11 +257,12 @@ export async function POST(request: Request) {
     }
 
     const appUrl = getAppUrl(request);
+    const redirectTo = `${appUrl}/auth/callback?next=/dashboard`;
     const magicLink = await admin.auth.admin.generateLink({
       type: "magiclink",
       email: authEmail,
       options: {
-        redirectTo: `${appUrl}/auth/callback?next=/dashboard`,
+        redirectTo,
       },
     });
 
@@ -272,7 +275,9 @@ export async function POST(request: Request) {
       throw new Error("Supabase не вернул ссылку входа.");
     }
 
-    const normalizedLoginUrl = normalizeMagicLinkUrl(actionLink, appUrl);
+    const hashedToken = magicLink.data.properties?.hashed_token?.trim();
+    const verifyUrl = hashedToken ? buildSupabaseVerifyUrl(hashedToken, redirectTo) : null;
+    const normalizedLoginUrl = verifyUrl ?? normalizeMagicLinkUrl(actionLink);
 
     return NextResponse.json({
       loginUrl: normalizedLoginUrl,
