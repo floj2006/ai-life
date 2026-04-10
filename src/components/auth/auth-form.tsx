@@ -280,6 +280,7 @@ export function AuthForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSessionChecking, setIsSessionChecking] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [cooldownUntil, setCooldownUntil] = useState(0);
@@ -401,6 +402,7 @@ export function AuthForm() {
       return;
     }
 
+    setIsSessionChecking(true);
     setIsLoading(true);
     setError("");
 
@@ -425,6 +427,7 @@ export function AuthForm() {
         router.refresh();
       })
       .finally(() => {
+        setIsSessionChecking(false);
         setIsLoading(false);
       });
   }, [mode, router, supabase]);
@@ -466,15 +469,25 @@ export function AuthForm() {
     let active = true;
 
     const syncSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!active) {
-        return;
+      setIsSessionChecking(true);
+      try {
+        const { data } = await supabase.auth.getSession();
+        if (!active) {
+          return;
+        }
+
+        if (data.session) {
+          router.replace("/dashboard");
+          router.refresh();
+          return;
+        }
+      } catch {
+        if (!active) {
+          return;
+        }
       }
 
-      if (data.session) {
-        router.replace("/dashboard");
-        router.refresh();
-      }
+      setIsSessionChecking(false);
     };
 
     void syncSession();
@@ -483,9 +496,11 @@ export function AuthForm() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (!session) {
+        setIsSessionChecking(false);
         return;
       }
 
+      setIsSessionChecking(true);
       router.replace("/dashboard");
       router.refresh();
     });
@@ -558,6 +573,10 @@ export function AuthForm() {
   );
 
   const isForgotCooldown = mode === "forgot" && cooldownSecondsLeft > 0;
+  const showAuthLoadingOverlay = isSessionChecking || isLoading;
+  const authLoadingText = isSessionChecking
+    ? "Проверяем вход и загружаем данные аккаунта..."
+    : "Выполняем вход...";
 
   const startResetCooldown = () => {
     const nextAt = Date.now() + RESET_COOLDOWN_SECONDS * 1000;
@@ -787,7 +806,21 @@ export function AuthForm() {
   };
 
   return (
-    <div className="surface auth-form-shell mx-auto w-full max-w-md p-5 md:p-7">
+    <div className="surface auth-form-shell relative mx-auto w-full max-w-md p-5 md:p-7">
+      {showAuthLoadingOverlay ? (
+        <div className="absolute inset-0 z-30 flex items-center justify-center rounded-3xl bg-white/92 px-6 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-2xl border border-sky-100 bg-white p-4 shadow-[0_20px_60px_rgba(8,47,73,0.16)]">
+            <div className="flex items-center gap-3">
+              <span className="inline-flex h-8 w-8 animate-spin rounded-full border-2 border-sky-200 border-t-sky-600" />
+              <div>
+                <p className="text-sm font-bold text-sky-900">Подождите немного</p>
+                <p className="mt-0.5 text-sm text-slate-600">{authLoadingText}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <div className="mb-4">
         <h2 className="text-2xl font-bold leading-tight text-[var(--ink)]">
           {mode === "signup" ? "Регистрация в личный кабинет" : "Вход в аккаунт"}
