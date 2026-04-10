@@ -23,6 +23,7 @@ export const runtime = "nodejs";
 type CheckoutPayload = {
   plan?: string;
   promoCode?: string;
+  preview?: boolean;
 };
 
 type PromoCodeDbRow = PromoCodeRecord;
@@ -69,9 +70,10 @@ const parsePayload = async (request: Request) => {
     const body = (await request.json()) as CheckoutPayload;
     const plan = isPaidPlanId(body.plan) ? body.plan : DEFAULT_PAID_PLAN;
     const promoCode = normalizePromoCode(body.promoCode);
-    return { plan, promoCode };
+    const preview = body.preview === true;
+    return { plan, promoCode, preview };
   } catch {
-    return { plan: DEFAULT_PAID_PLAN as PaidPlanId, promoCode: "" };
+    return { plan: DEFAULT_PAID_PLAN as PaidPlanId, promoCode: "", preview: false };
   }
 };
 
@@ -168,7 +170,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Нужна авторизация." }, { status: 401 });
   }
 
-  const { plan, promoCode } = await parsePayload(request);
+  const { plan, promoCode, preview } = await parsePayload(request);
   const selectedPlan = paidPlanById[plan];
   const baseAmountRub = getPlanAmountRub(plan);
 
@@ -180,6 +182,16 @@ export async function POST(request: Request) {
 
   if ("error" in promoResult) {
     return NextResponse.json({ error: promoResult.error }, { status: 400 });
+  }
+
+  if (preview) {
+    return NextResponse.json({
+      preview: true,
+      baseRub: baseAmountRub.toFixed(2),
+      totalRub: promoResult.finalAmountValue,
+      discountRub: promoResult.discountValue,
+      promoCode: promoResult.promo?.code ?? null,
+    });
   }
 
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? new URL(request.url).origin;
@@ -210,6 +222,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       url: confirmationUrl,
+      baseRub: baseAmountRub.toFixed(2),
       totalRub: promoResult.finalAmountValue,
       discountRub: promoResult.discountValue,
       promoCode: promoResult.promo?.code ?? null,
